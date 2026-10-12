@@ -1,0 +1,16 @@
+name: hisobot-dev
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: hisobot
+      POSTGRES_USER: hisobot
+      POSTGRES_PASSWORD: hisobot
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
