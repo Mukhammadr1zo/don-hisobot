@@ -1,0 +1,10 @@
+{% extends "hisobot/base.html" %}
+{% comment %}Django's CSRF failure page (CSRF_FAILURE_TEMPLATE_NAME): usually a form left open across a sign-in or sign-out.{% endcomment %}
+{% block title %}Саҳифа эскирган · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Саҳифа эскирган</h1>
+<p>Форма юборилмади: у очилгандан кейин тизимга кириш ёки чиқиш бўлган. Маълумот сақланмади.</p>
+<p>Орқага қайтинг, саҳифани янгиланг ва қайта юборинг.</p>
+<div class="actions"><a class="btn btn-primary" href="{% url 'home' %}">Бош саҳифа</a></div>
+{% endblock %}

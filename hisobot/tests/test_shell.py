@@ -290,3 +290,21 @@ class StyleguideTests(SimpleTestCase):
         self.assertIn("prefers-color-scheme: dark", css)
         self.assertIn("tabular-nums", css)
         self.assertNotRegex(css, r"@import|url\(|https?:")
+
+
+class ErrorPageTests(TestCase):
+    """With DEBUG off (as in tests) Django's own error pages are English; these replace them."""
+
+    def test_not_found_is_in_cyrillic(self):
+        response = self.client.get("/yoq/")
+        self.assertContains(response, "Саҳифа топилмади", status_code=404)
+
+    def test_csrf_failure_is_in_cyrillic(self):
+        client = self.client_class(enforce_csrf_checks=True)
+        response = client.post(reverse("staff_login"), {"username": "x", "password": "y"})
+        self.assertContains(response, "Саҳифа эскирган", status_code=403)
+
+    def test_server_error_page_needs_neither_request_nor_database(self):
+        with self.assertNumQueries(0):
+            html = render_to_string("500.html")
+        self.assertIn("Хатолик юз берди", html)
