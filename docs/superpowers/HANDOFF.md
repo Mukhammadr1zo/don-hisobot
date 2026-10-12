@@ -1,65 +1,69 @@
 # Handoff: where the build stands
 
-Updated 2026-10-12. Branch `feat/tizim`, last commit "feat: qoldiq hisobi, kirish va PIN, …". 132 tests green.
+Updated 2026-10-12. Branch `claude/youthful-cori-fjo0it`. All 11 plan tasks are built; 265 tests green.
 
 Read in this order: this file, the plan (`docs/superpowers/plans/2026-10-12-don-hisobot.md`), then the spec
 (`docs/superpowers/specs/2026-10-12-don-hisobot-design.md`, Uzbek) for the sections your task names.
 
-## Done (reviewed, committed)
+## Done
 
 | Task | What | Files |
 |---|---|---|
-| 1 | Scaffold, models, DB guards, seed, time logic | `config/`, `hisobot/models.py`, `migrations/`, `periods.py`, `management/commands/seed.py` |
-| 2 | Balance write side | `hisobot/balance.py` |
-| 3 | PIN / staff auth, scoping | `hisobot/access.py` |
-| 4 | Read side | `hisobot/reports.py` |
-| 5 | URLs, stub views, form, filters, base layout, CSS | `hisobot/urls.py`, `forms.py`, `templatetags/`, `templates/hisobot/base.html`, `_styleguide.html`, `static/hisobot/app.css`, `views_*.py` (stubs) |
+| 1–5 | Scaffold, models, guards, seed, periods; balance; access; read side; shell (URLs, form, filters, CSS) | see the plan's File Structure |
+| 6 | Station flow: MTU → station → PIN → two open periods, last 7 days | `views_public.py`, `views_station.py`, `templates/hisobot/public/*`, `station/*` |
+| 7 | Staff: Ҳозир, Кунлик жадвал, entry form with history | `views_staff.py`, `staff/now|daily|entry.html` |
+| 8 | Stations, roster import, PIN sheet, passwords | `views_stations.py`, `roster.py`, `staff/stations*|import|pin_sheet|*password*.html` |
+| 9 | Summary, charts, Excel export | `views_reports.py`, `summary.py`, `export.py`, `staff/report.html`, `static/hisobot/charts.js`, `chart.umd.min.js` |
+| 10 | Isolation test over every `/xodim/` URL | `tests/test_isolation.py` |
+| 11 | Dockerfile, compose, Caddy, backup, README (Uzbek Latin) | `Dockerfile`, `.dockerignore`, `compose.yaml`, `Caddyfile`, `backup.sh`, `.env.example`, `README.md` |
+| — | Uzbek 404 / 500 / CSRF pages | `templates/404.html`, `500.html`, `403_csrf.html` |
 
-## To do, in order
+Then a whole-branch review: 8 reviewers, each finding checked by an adversarial verifier; 25 of 26 confirmed and
+fixed in `3a23305` (the commit message lists them), each with a test that fails on the old code. A second
+check of that commit ran after it.
 
-1. Tasks 6, 7, 8, 9 of the plan (station flow; staff now/daily/entry; stations management + import + PINs;
-   summary + charts + export). File ownership is disjoint, so they can run in parallel. Each replaces its stub `views_*.py`.
-2. Task 10 (isolation test over every `/xodim/` URL), Task 11 (Dockerfile, compose, Caddy, backup, README in Uzbek Latin).
-3. Whole-branch review, then a real run in the browser: seed, import a roster, print PINs, station enters two
-   periods on a phone-width viewport, MTU and boshqarma views, Excel export opened and checked.
+A real browser run (Playwright, 360px phone and 1280px desktop) went through: seed, roster import (a foreign
+MTU row refused, then 4 stations), PIN sheet on screen and as PDF, station login with a wrong and the right PIN,
+two periods entered (opening, live «Қолган», negative refused), MTU and boshqarma Ҳозир, daily table, report
+with both charts, entry history, Excel export opened with openpyxl.
 
-## Facts the plan does not contain (decided during Tasks 1–5)
+## Not done / not verifiable here
 
-Contract changes:
-- `reports.daily_rows(stations, report_date, *, now)`: `now` is required. A period not ended at `now` is a blank
-  `Cell(None, False, None, False)`, never "missing". `daily_rows` and `submission` need a queryset, not a list.
-  `submission` returns no item for an MTU with no stations in scope.
-- `balance.SaveError` has a ninth code, `scope` (an MTU user writing another MTU's station). Show `error.message`
-  to the user; do not branch on codes except `stale` and `opening_required`.
-- `balance.set_opening`: unchanged value returns 0 and logs nothing; a station without an opening raises
-  `SaveError("opening_required")`. `Change(kind="opening")` payload is `{"opening_remaining": N}`.
-- Cascaded entries keep `updated_at`: it is the last submission time shown as «Қабул қилинди 08:07».
-- Station PINs are hashed with `access.PinHasher` (`pbkdf2_sha256_pin`, 20 000 iterations). Any test that overrides
-  `PASSWORD_HASHERS` must keep `"hisobot.access.PinHasher"` in the list.
-- `validate_station_name` rejects leading or trailing whitespace: the roster import must strip names first.
-- `periods.label` / `to_slug` raise `ValueError` for a non-boundary; `from_slug` accepts years 2000–2099 only.
+- **The Docker image was never built** and the stack never ran: this environment has no Docker daemon.
+  `docker compose config` passes; `collectstatic` and gunicorn with `DEBUG=0` were run directly; the web
+  healthcheck command was run against that gunicorn; `backup.sh` ran against a local PostgreSQL through a
+  stand-in `docker`; `pg_restore --clean --if-exists` over a live copy worked. First thing on a machine with
+  Docker: `DOMAIN=localhost` stack up, `/healthz` through Caddy (plan Task 11 last step).
+- **Push**: GitHub refused pushes from this session (403, app access). The commits are on the local branch.
 
-For views and tests:
-- Staff tests: log in by POSTing to `staff_login`, or `client.force_login(user)` and then set
-  `session["staff_login_at"] = timezone.now().timestamp()`; without the stamp `staff_required` treats the session as expired.
-- Station session keys: `station_id`, `pin_version`. `station_required` sets `request.station`.
-- `views_public.station_login` must 404 an inactive station before calling `access.station_login` (which does not check `active_to`).
-  The PIN input must accept `1234 5678` (max length 9); `access.station_login` strips spaces.
-- Anything that writes `Station` must use `save(update_fields=[...])`, or it clobbers PIN and lock state.
-- "Locked" means `locked_until > now`; an expired lock time stays in the column.
-- Keep `healthz` and `styleguide` when replacing `views_public.py`.
-- Markup rules from the styleguide (`/_uslub/` with DEBUG): station name cell is `<th scope="row">` and its header
-  cell has `class="key"`; staff forms sit in `<div class="narrow stack">`; forms carry `novalidate` and print
-  hidden-field errors as a notice; PIN strips are not wrapped in `.card`.
-- Feature tasks must not edit `app.css`, `base.html`, `forms.py`, `urls.py`, `templatetags/`, `models.py`.
-- Parallel test runs: each sets its own `TEST_DB_NAME`.
+## Running without Docker
 
-For Task 11:
-- `compose.yaml` must set `DEBUG=0`, `SECRET_KEY`, `TRUST_PROXY=1`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`; give it a
-  compose project name other than `hisobot-dev`. Caddy must be the only way in and must overwrite
-  `X-Forwarded-For` / `X-Forwarded-Proto`. `.gitattributes` already forces LF for `*.sh`.
+A plain PostgreSQL works: role `hisobot` / password `hisobot` with `CREATEDB`, database `hisobot`, then
+`export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=hisobot DB_USER=hisobot DB_PASSWORD=hisobot`.
+Parallel test runs each need their own `TEST_DB_NAME`.
 
-## Open minor findings (triage at the final review)
+## Decisions taken in Tasks 6–11 (beyond the plan)
+
+- Station: a card for an open period that starts before `opening_at` shows the `before_opening` text and no
+  button; staff `entry` refuses such a period the same way. A lock message gives the date too when the lock
+  ends on another day.
+- Staff entry: after a save it redirects to itself with «Сақланди» (+ cascaded count); stale shows the stored
+  numbers; «Орқага» goes to the daily table of that date (boshqarma: the station's MTU).
+- Stations: no `Change` row on creation; `pin_sheet` 404s a foreign or malformed checked id; the boshqarma's
+  `?mtu=` filters the page and limits «ПИН яратиш» to that MTU; toggle posts `active=0|1` and a repeat is a no-op.
+- Roster import: names are whitespace-collapsed (`" ".join(value.split())`); unpacked size ≤ 20 MB; rows read
+  up to Excel's 1 048 576 with `reset_dimensions()`. `validate_station_name` now also rejects unprintable
+  characters (no migration: the validator is referenced by path).
+- Summary: `summary()` / `daily_series()` take `now`; data nobody entered is `None`, never 0; `daily_series` uses
+  `reports._latest` / `reports._stock` (private) to keep a fixed query count — make them public if touched again.
+- Report and export dates are clamped to the latest report date. Export «Жами» rows are blank for a period that
+  has not ended. Grey (`is-missing`) on the report only where something was expected.
+- Chart.js 4.4.7 UMD comes from the npm registry tarball (shasum matched the registry); cdnjs is blocked here.
+  Dark chart colours were re-stepped to pass the dataviz validator. Charts redraw with light tokens for print.
+- `LOGGING` sends `django` ERROR records to stderr, so 500s reach `docker compose logs web`.
+- Gunicorn runs with `--no-control-socket` (the `app` user has no home).
+
+## Open minor items (none blocking)
 
 - Phone nav for boshqarma scrolls sideways with a hidden scrollbar (`app.css` ~244).
 - `test_access`: no case with a station both locked and IP-throttled (order LOCKED before THROTTLED is unpinned).
@@ -67,7 +71,13 @@ For Task 11:
 - `test_balance` thread joins have no timeout; the `last is None` half of the gap flag is untested.
 - `client_ip` falls back to `0.0.0.0` silently when the address cannot be parsed.
 - `seed` help text is Latin-script Uzbek.
+- Pre-existing lint (default ruff rules here): RUF012 on model `Meta`/migrations, I001 in `access.py` and
+  `test_access.py`, DTZ001 in `test_periods.py` (deliberate naive datetime), C408 in `test_balance.py`.
+- `_styleguide.html` wraps its sample PIN strips in `.card`, against the HANDOFF rule the real sheet follows.
+- New UI wording not in the glossary (worth a native speaker's look): «Ўзгаришлар тарихи», «Барча МТУ»,
+  «Қолган (ҳисобланган)», «Қолган (қўлда)», «Бошланиш санаси», «Охирги сана», «Кўрсатиш», «Ҳаммаси»,
+  «Саҳифа эскирган», the export footer lines.
 
 ## Still needed from the customer
 
-The station roster (МТУ | Станция номи), a server and domain, and where backups are kept.
+The station roster (МТУ | Станция номи), a server and domain, and where backups are kept off the server.
