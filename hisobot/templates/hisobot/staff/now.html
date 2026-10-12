@@ -1,0 +1,64 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% comment %}
+One period. Boshqarma without ?mtu=: a card per MTU, each opening that MTU's list.
+One MTU in scope: who has not submitted (first, with «Киритиш»), then who has, with the numbers.
+{% endcomment %}
+{% block title %}Ҳозир · {{ block.super }}{% endblock %}
+
+{% block content %}
+{% if mtu and request.user.is_boshqarma %}<a class="back" href="?pe={{ pe|slug }}">Орқага</a>{% endif %}
+<h1>{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %}</h1>
+<nav class="pager" aria-label="Давр">
+  <a class="btn" href="{{ prev_url }}" aria-label="Олдинги давр"></a>
+  <div>
+    <h2>{{ pe|period_name }} · {{ pe|d }}</h2>
+    <p class="card-sub">{{ pe|period_range }}</p>
+  </div>
+  {% if next_url %}<a class="btn" href="{{ next_url }}" aria-label="Кейинги давр"></a>{% else %}<span class="btn" aria-disabled="true"></span>{% endif %}
+</nav>
+
+{% if cards %}
+<div class="card-grid">
+  {% for card in cards %}
+  <a class="card" href="?mtu={{ card.mtu.pk }}&amp;pe={{ pe|slug }}"><h3 class="card-title">{{ card.mtu.name }}</h3><div class="stat"><span class="stat-num">{{ card.submitted }}<small> / {{ card.expected }}</small></span><span class="stat-cap">топширди</span></div>{% if card.expected %}<progress value="{{ card.submitted }}" max="{{ card.expected }}"></progress>{% endif %}</a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="stat"><span class="stat-num">{{ sub.submitted }}<small> / {{ sub.expected }}</small></span><span class="stat-cap">топширди</span></div>
+  {% if sub.expected %}<progress value="{{ sub.submitted }}" max="{{ sub.expected }}"></progress>{% endif %}
+</div>
+{% if sub.missing %}
+<ul class="list">
+  {% for station in sub.missing %}
+  <li><div><span>{{ station.name }}</span><span class="badge-warn">Топширилмаган</span><a class="btn btn-sm btn-primary" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></div></li>
+  {% endfor %}
+</ul>
+{% elif sub.done %}
+<p class="empty">Ҳамма станциялар топширди</p>
+{% else %}
+<p class="empty">Бу давр учун кутилган станция йўқ</p>
+{% endif %}
+{% if sub.done %}
+<p class="muted small">Туширилган · Кириб келган · Қолган</p>
+<ul class="list">
+  {% for e in sub.done %}
+  <li><a href="{% url 'staff_entry' e.station.pk pe|slug %}"><span>{{ e.station.name }}</span><span class="muted nowrap">{{ e.unloaded }} · {{ e.arrived }} · <span{% if e.remaining < 0 %} class="is-negative"{% endif %}>{{ e.remaining }}</span></span><span class="badge-ok">Қабул қилинди {{ e.updated_at|t }}</span></a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+
+<h2>Эътибор талаб</h2>
+<p class="muted">Охирги {{ attention_days }} кун: қўлда ўзгартирилган ва манфий қолдиқлар.</p>
+{% if attention %}
+<ul class="list">
+  {% for e in attention %}
+  <li><div><span>{{ e.station.name }} <small class="muted">· {% if not mtu %}{{ e.station.mtu.name }} МТУ · {% endif %}{{ e.period_end|d }} {{ e.period_end|period_name|lower }}</small></span>{% if e.remaining < 0 %}<span class="is-negative nowrap">{{ e.remaining }}</span>{% else %}<span class="nowrap">{{ e.remaining }} <small class="muted">ҳисобланган: {{ e.remaining_calc }}</small></span>{% endif %}<a class="btn btn-sm" href="{% url 'staff_entry' e.station.pk e.period_end|slug %}">Тузатиш</a></div></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">Эътибор талаб қиладиган ёзув йўқ</p>
+{% endif %}
+{% endblock %}

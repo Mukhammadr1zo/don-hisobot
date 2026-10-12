@@ -1,0 +1,108 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% comment %}
+One station, one ended period: the station's own form (staff may save any ended period) and the history
+of the entry. `history` is [(change, who, [(label, old, new), …]), …], newest first.
+{% endcomment %}
+{% block title %}{{ station.name }} · {{ pe|period_name }} · {{ block.super }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ back_url }}">Орқага</a>
+<div class="card-head">
+  <div>
+    <h1>{{ station.name }}</h1>
+    <p class="card-sub">{{ station.mtu.name }} МТУ · {{ pe|period_name }} · {{ pe|period_range }}</p>
+  </div>
+  {% if current %}<span class="badge-ok">Қабул қилинди {{ current.updated_at|dt }}</span>{% else %}<span class="badge-warn">Топширилмаган</span>{% endif %}
+</div>
+<div class="cols">
+  <div class="narrow stack">
+    {# novalidate: the browser would show its own messages in its own language; the server's are Cyrillic. #}
+    <form method="post" novalidate class="stack" id="yozuv" data-prev="{{ prev|default_if_none:'' }}">
+      {% csrf_token %}
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% for message in hidden.errors %}<div class="notice-error" role="alert">{{ message }}</div>{% endfor %}{% endfor %}
+      {% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
+      {% if gap %}<div class="notice-warn" role="status">Олдинги давр киритилмаган</div>{% endif %}
+      {% if needs_opening %}
+      <div class="field">
+        <label for="{{ form.opening.id_for_label }}">{{ form.opening.label }}</label>
+        {{ form.opening }}
+        {{ form.opening.errors }}
+      </div>
+      {% else %}
+      <div class="stat"><span class="stat-num">{{ prev }}</span><span class="stat-cap">Давр бошида</span></div>
+      {% endif %}
+      <div class="field-row">
+        <div class="field">
+          <label for="{{ form.unloaded.id_for_label }}">{{ form.unloaded.label }}</label>
+          {{ form.unloaded }}
+          {{ form.unloaded.errors }}
+        </div>
+        <div class="field">
+          <label for="{{ form.arrived.id_for_label }}">{{ form.arrived.label }}</label>
+          {{ form.arrived }}
+          {{ form.arrived.errors }}
+        </div>
+      </div>
+      <div class="card"><div class="stat"><span class="stat-num" id="qolgan">{{ current.remaining|num }}</span><span class="stat-cap">Қолган</span></div></div>
+      {% with typed=form.override.value %}
+      <details{% if typed is not None and typed != "" or form.override.errors %} open{% endif %}>
+        <summary>{{ form.override.label }}</summary>
+        <div class="field">
+          <label for="{{ form.override.id_for_label }}">Қолган</label>
+          {{ form.override }}
+          {{ form.override.errors }}
+          <p class="field-hint">Бўш қолдирилса, қолдиқ автоматик ҳисобланади.</p>
+        </div>
+      </details>
+      {% endwith %}
+      <button class="btn btn-primary btn-block">Сақлаш</button>
+      <button class="btn btn-block" name="harakatsiz" value="1">Ҳаракат бўлмади (0 / 0)</button>
+    </form>
+    <script>
+    // Live «Қолган»: the value the server will compute from what is typed, before anything is saved.
+    (function () {
+      var form = document.getElementById("yozuv"), out = document.getElementById("qolgan");
+      function value(name) {
+        var field = form.elements[name];
+        return field && field.value.trim() !== "" ? Number(field.value) : null;
+      }
+      function update() {
+        var start = form.dataset.prev !== "" ? Number(form.dataset.prev) : value("opening");
+        var unloaded = value("unloaded"), arrived = value("arrived"), override = value("override");
+        var left = override !== null ? override
+          : start !== null && unloaded !== null && arrived !== null ? start + arrived - unloaded : null;
+        out.textContent = left === null || isNaN(left) ? "—" : left;
+        out.parentNode.classList.toggle("is-negative", left < 0);
+      }
+      form.addEventListener("input", update);
+      update();
+    })();
+    </script>
+  </div>
+  <section class="stack">
+    <h2>Ўзгаришлар тарихи</h2>
+    {% if history %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th class="key">Вақт</th><th>Ким</th><th>Ўзгариш</th></tr></thead>
+        <tbody>
+          {% for change, who, diffs in history %}
+          <tr>
+            <th scope="row" class="nowrap">{{ change.at|dt }}</th>
+            <td>{{ who }}</td>
+            <td>
+              {% for label, old, new in diffs %}<div>{{ label }}: {{ old|num }} → {{ new|num }}</div>{% endfor %}
+              {% with cause=change.cause %}{% if cause %}<div class="muted small">сабаб: {% if cause.entry %}<a href="{% url 'staff_entry' station.pk cause.entry.period_end|slug %}">{{ cause.entry.period_end|d }} {{ cause.entry.period_end|period_name|lower }}</a>{% else %}давр бошидаги қолдиқ{% endif %} тузатилди</div>{% endif %}{% endwith %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty">Ҳали ўзгариш йўқ</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
