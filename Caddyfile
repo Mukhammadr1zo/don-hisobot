@@ -1,0 +1,15 @@
+{$DOMAIN} {
+	encode gzip
+
+	# Station import is capped at 1 MB by the app; nothing legitimate is larger.
+	request_body {
+		max_size 2MB
+	}
+
+	reverse_proxy web:8000 {
+		# The app (TRUST_PROXY=1) takes the client IP from the rightmost X-Forwarded-For entry.
+		# Overwrite both headers so nothing a client sends reaches Django.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

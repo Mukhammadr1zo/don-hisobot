@@ -1,0 +1,12 @@
+.git
+.venv
+.env
+backups
+staticfiles
+docs
+**/__pycache__
+*.pyc
+.ruff_cache
+.superpowers
+.impeccable
+.playwright-mcp
