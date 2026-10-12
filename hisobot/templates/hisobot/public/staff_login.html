@@ -1,0 +1,20 @@
+{% extends "hisobot/base.html" %}
+{% block title %}Кириш · {{ block.super }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{% url 'home' %}">Орқага</a>
+<h1>МТУ / Бошқарма учун кириш</h1>
+{% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
+<form method="post" novalidate class="stack">
+  {% csrf_token %}
+  <div class="field">
+    <label for="login">Логин</label>
+    <input type="text" id="login" name="username" value="{{ username }}" autocomplete="username" autocapitalize="none" spellcheck="false"{% if not username %} autofocus{% endif %}>
+  </div>
+  <div class="field">
+    <label for="parol">Парол</label>
+    <input type="password" id="parol" name="password" autocomplete="current-password"{% if username %} autofocus{% endif %}>
+  </div>
+  <button class="btn btn-primary btn-block">Кириш</button>
+</form>
+{% endblock %}

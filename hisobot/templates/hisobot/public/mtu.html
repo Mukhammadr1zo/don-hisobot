@@ -1,0 +1,41 @@
+{% extends "hisobot/base.html" %}
+{% comment %}
+The active stations of one MTU. The search box is a GET form (?q=) that the server filters;
+with JavaScript the list also filters as you type.
+{% endcomment %}
+{% block title %}{{ mtu.name }} МТУ · {{ block.super }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{% url 'home' %}">Орқага</a>
+<h1>{{ mtu.name }} МТУ</h1>
+<form method="get" role="search">
+  <div class="field">
+    <label for="qidir">Станцияни қидириш</label>
+    <input type="search" id="qidir" name="q" value="{{ query }}" placeholder="Станция номи" autocomplete="off">
+  </div>
+</form>
+{% if stations %}
+<ul class="list" id="stansiyalar">
+  {% for station in stations %}
+  <li><a href="{% url 'station_login' station.pk %}"><span>{{ station.name }}</span></a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p class="empty" id="topilmadi"{% if stations %} hidden{% endif %}>{% if query %}Топилмади{% else %}Бу МТУда станциялар ҳали йўқ{% endif %}</p>
+<script>
+(function () {
+  var box = document.getElementById("qidir"), none = document.getElementById("topilmadi");
+  var rows = document.querySelectorAll("#stansiyalar > li");
+  if (!rows.length) return;
+  box.addEventListener("input", function () {
+    var query = box.value.trim().toLocaleLowerCase(), shown = 0;
+    rows.forEach(function (row) {
+      row.hidden = row.textContent.toLocaleLowerCase().indexOf(query) === -1;
+      shown += row.hidden ? 0 : 1;
+    });
+    none.textContent = "Топилмади";
+    none.hidden = shown > 0;
+  });
+})();
+</script>
+{% endblock %}

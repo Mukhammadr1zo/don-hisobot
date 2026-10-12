@@ -1,0 +1,23 @@
+{% extends "hisobot/base.html" %}
+{% comment %}
+PIN entry for one station. The sheet prints the PIN as «1234 5678»: maxlength 9 lets it be typed or pasted
+with the space, which access.station_login strips. The PIN is never echoed back.
+{% endcomment %}
+{% block title %}{{ station.name }} · {{ block.super }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{% url 'mtu_stations' station.mtu_id %}">Орқага</a>
+<div>
+  <h1>{{ station.name }}</h1>
+  <p class="muted">{{ station.mtu.name }} МТУ</p>
+</div>
+{% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
+<form method="post" novalidate class="stack">
+  {% csrf_token %}
+  <div class="field">
+    <label for="pin">ПИН</label>
+    <input class="num-input" type="text" id="pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="0000 0000" autofocus>
+  </div>
+  <button class="btn btn-primary btn-block">Кириш</button>
+</form>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "hisobot/base.html" %}
+{% comment %}Start page for visitors: a station picks its MTU here; staff take the link at the bottom.{% endcomment %}
+
+{% block content %}
+<h1>МТУни танланг</h1>
+<ul class="list">
+  {% for mtu in mtus %}
+  <li><a href="{% url 'mtu_stations' mtu.pk %}"><span>{{ mtu.name }}</span><span class="badge-muted">{{ mtu.active }} станция</span></a></li>
+  {% endfor %}
+</ul>
+<p><a href="{% url 'staff_login' %}">МТУ / Бошқарма учун кириш</a></p>
+{% endblock %}

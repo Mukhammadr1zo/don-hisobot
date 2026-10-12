@@ -1,0 +1,91 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% comment %}
+Station start page: server time, the two open periods (newest first), when the next one opens,
+and the last seven report days, read only. Cell states as in the daily table (app.css TABLES).
+{% endcomment %}
+
+{% block content %}
+<div>
+  <h1>{{ request.station.name }}</h1>
+  <p class="muted">Сервер вақти: {{ now|dt }}</p>
+</div>
+
+{% for card in cards %}
+<article class="card">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">{{ card.pe|period_name }}</h2>
+      <p class="card-sub">{{ card.pe|period_range }}</p>
+    </div>
+    {% if card.entry %}<span class="badge-ok">Қабул қилинди {{ card.entry.updated_at|t }}</span>
+    {% elif not card.refusal %}<span class="badge-warn">Топширилмаган</span>{% endif %}
+  </div>
+  {% if card.entry %}
+  <div class="stat-row">
+    <div class="stat"><span class="stat-num">{{ card.entry.unloaded }}</span><span class="stat-cap">Туширилган</span></div>
+    <div class="stat"><span class="stat-num">{{ card.entry.arrived }}</span><span class="stat-cap">Кириб келган</span></div>
+    <div class="stat{% if card.entry.remaining < 0 %} is-negative{% endif %}"><span class="stat-num">{{ card.entry.remaining }}</span><span class="stat-cap">Қолган</span></div>
+  </div>
+  {% endif %}
+  {% if card.refusal %}
+  <p class="card-sub">{{ card.refusal }}</p>
+  {% elif card.entry %}
+  <p class="card-sub">{{ card.deadline|date:"d.m H:i" }} гача тузатиш мумкин</p>
+  <a class="btn btn-block" href="{% url 'station_entry' card.pe|slug %}">Тузатиш</a>
+  {% else %}
+  <p class="card-sub">{{ card.deadline|date:"d.m H:i" }} гача киритиш мумкин</p>
+  <a class="btn btn-primary btn-block" href="{% url 'station_entry' card.pe|slug %}">Киритиш</a>
+  {% endif %}
+</article>
+{% endfor %}
+<p class="muted">Кейинги давр {{ next_open|t }} да очилади</p>
+
+<h2>Охирги {{ history|length }} кун</h2>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th rowspan="2" class="key">Сана</th>
+        <th colspan="3">Тунги давр (20:00–08:00)</th>
+        <th colspan="3">Кундузги давр (08:00–20:00)</th>
+        <th rowspan="2" class="num">Сутка давомида жами туширилган вагонлар сони</th>
+      </tr>
+      <tr>
+        <th class="num">Туширилган</th>
+        <th class="num">Кириб келган</th>
+        <th class="num">Қолган</th>
+        <th class="num">Туширилган</th>
+        <th class="num">Кириб келган</th>
+        <th class="num">Қолган</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for day, cells, row in history %}
+      <tr>
+        <th scope="row" class="nowrap">{{ day|d }}</th>
+        {% for cell in cells %}
+        {% if cell.entry %}
+        <td class="num">{{ cell.entry.unloaded }}</td>
+        <td class="num">{{ cell.entry.arrived }}</td>
+        <td class="num{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}">{{ cell.remaining }}</td>
+        {% else %}
+        <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
+        <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
+        <td class="num{% if cell.expected %} is-missing{% endif %}{% if cell.carried %} is-carried{% endif %}">{{ cell.remaining|num }}</td>
+        {% endif %}
+        {% endfor %}
+        <td class="num{% if row.total_unloaded is None and row.partial %} is-missing{% endif %}">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<ul class="legend">
+  <li><span class="swatch is-missing"></span>Киритилмаган</li>
+  <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
+  <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
+  <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
+  <li><span>12*</span>Бир давр киритилмаган</li>
+</ul>
+{% endblock %}
