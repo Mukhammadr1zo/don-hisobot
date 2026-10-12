@@ -1,8 +1,18 @@
-{% extends "hisobot/base.html" %}
-{% block title %}Саҳифа топилмади · {{ block.super }}{% endblock %}
-
-{% block content %}
+{% comment %}Standalone like 500.html: base.html reverses URL names, which a test's own URLconf may not have.{% endcomment %}{% load static %}<!doctype html>
+<html lang="uz-Cyrl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Саҳифа топилмади · Дон ҳисоботи</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{% static 'hisobot/app.css' %}">
+</head>
+<body>
+<main class="page narrow">
 <h1>Саҳифа топилмади</h1>
 <p>Ҳавола нотўғри ёки бу саҳифа сизга очиқ эмас.</p>
-<div class="actions"><a class="btn btn-primary" href="{% url 'home' %}">Бош саҳифа</a></div>
-{% endblock %}
+<div class="actions"><a class="btn btn-primary" href="/">Бош саҳифа</a></div>
+</main>
+</body>
+</html>

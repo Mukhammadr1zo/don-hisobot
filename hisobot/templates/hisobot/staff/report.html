@@ -1,0 +1,184 @@
+{% extends "hisobot/base.html" %}
+{% load static hisobot_extras %}
+{% comment %}
+«Ҳисобот» (views_reports.report). The tables carry every number. charts.js draws the two charts from #chart-data
+when Chart.js has loaded; without it the chart boxes keep their fallback text.
+{% endcomment %}
+{% block title %}Ҳисобот · {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>Ҳисобот</h1>
+    <p class="muted">{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %} · {{ d_from|d }} – {{ d_to|d }}</p>
+  </div>
+  <span class="spacer"></span>
+  <div>
+    <a class="btn" href="{{ export_url }}">Excel юклаб олиш</a>
+    <p class="muted small">{{ export_date|d }} кунлик жадвали</p>
+  </div>
+</div>
+
+<form method="get" class="toolbar" novalidate>
+  <div class="actions" role="group" aria-label="Тайёр оралиқлар">
+    {% for preset in presets %}<a class="btn{% if preset.current %} btn-primary{% endif %}" href="{{ preset.url }}"{% if preset.current %} aria-current="true"{% endif %}>{{ preset.name }}</a>
+    {% endfor %}
+  </div>
+  <div class="field">
+    <label for="r-from">Бошланиш санаси</label>
+    <input type="date" id="r-from" name="from" value="{{ d_from|date:'Y-m-d' }}">
+  </div>
+  <div class="field">
+    <label for="r-to">Охирги сана</label>
+    <input type="date" id="r-to" name="to" value="{{ d_to|date:'Y-m-d' }}">
+  </div>
+  {% if mtus %}
+  <div class="field">
+    <label for="r-mtu">МТУ</label>
+    <select id="r-mtu" name="mtu">
+      <option value="">Ҳаммаси</option>
+      {% for item in mtus %}<option value="{{ item.id }}"{% if mtu and item.id == mtu.id %} selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <button class="btn">Кўрсатиш</button>
+</form>
+
+{% if notice %}<div class="notice-warn" role="status">{{ notice }}</div>{% endif %}
+<p>Оралиқда киритилмаган станция-даврлар: {{ missing }}. Йиғиндиларга фақат киритилган даврлар қўшилади.</p>
+
+<div class="cols">
+  <section class="card">
+    <h2 class="card-title">Кунлик туширилган, кириб келган, қолган</h2>
+    <div class="chart" id="chart-daily"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--chart-1); height: 3px; border: 0"></span>Туширилган</li>
+      <li><span class="swatch" style="background: var(--chart-2); height: 3px; border: 0"></span>Кириб келган</li>
+      <li><span class="swatch" style="background: var(--chart-3); height: 3px; border: 0"></span>Қолган (кун охирида, 20:00)</li>
+    </ul>
+    <details>
+      <summary>Кунлар бўйича жадвал</summary>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="key">Сана</th>
+              <th class="num">Туширилган</th>
+              <th class="num">Кириб келган</th>
+              <th class="num">Қолган, 20:00</th>
+              <th class="num">Киритилмаган</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, unloaded, arrived, remaining, day_missing in days %}
+            <tr>
+              <th scope="row">{{ label }}</th>
+              <td class="num{% if unloaded is None %} is-missing{% endif %}">{{ unloaded|num }}</td>
+              <td class="num{% if arrived is None %} is-missing{% endif %}">{{ arrived|num }}</td>
+              <td class="num{% if remaining is None %} is-missing{% elif remaining < 0 %} is-negative{% endif %}">{{ remaining|num }}</td>
+              <td class="num">{{ day_missing|num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+  <section class="card">
+    <h2 class="card-title">{% if by == "mtu" %}МТУ бўйича{% else %}Станциялар бўйича{% endif %} туширилган ва кириб келган</h2>
+    <div class="chart" id="chart-compare"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--chart-1)"></span>Туширилган</li>
+      <li><span class="swatch" style="background: var(--chart-2)"></span>Кириб келган</li>
+    </ul>
+  </section>
+</div>
+
+{% if grouped %}
+<h2>МТУ бўйича</h2>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="key">МТУ</th>
+        <th class="num">Туширилган</th>
+        <th class="num">Кириб келган</th>
+        <th class="num">Қолган, {{ d_to|d }} 20:00</th>
+        <th class="num">Киритилган / кутилган</th>
+        <th class="num">Қўлда ўзгартирилган</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in mtu_rows %}
+      <tr>
+        <th scope="row">{{ row.mtu.name }}</th>
+        <td class="num{% if row.unloaded is None %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
+        <td class="num{% if row.arrived is None %} is-missing{% endif %}">{{ row.arrived|num }}</td>
+        <td class="num{% if row.remaining_end is None %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
+        <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
+        <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="total">
+        <th scope="row">Жами</th>
+        <td class="num{% if total.unloaded is None %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
+        <td class="num{% if total.arrived is None %} is-missing{% endif %}">{{ total.arrived|num }}</td>
+        <td class="num{% if total.remaining_end is None %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
+        <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
+        <td class="num">{{ total.overrides }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endif %}
+
+<h2>Станциялар бўйича</h2>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="key">Станция</th>
+        <th class="num">Туширилган</th>
+        <th class="num">Кириб келган</th>
+        <th class="num">Қолган, {{ d_to|d }} 20:00</th>
+        <th class="num">Киритилган / кутилган</th>
+        <th class="num">Қўлда ўзгартирилган</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in station_rows %}
+      {% if grouped %}{% ifchanged row.mtu.id %}<tr class="group"><th colspan="6"><span>{{ row.mtu.name }} МТУ</span></th></tr>{% endifchanged %}{% endif %}
+      <tr>
+        <th scope="row">{{ row.station.name }}</th>
+        <td class="num{% if row.unloaded is None %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
+        <td class="num{% if row.arrived is None %} is-missing{% endif %}">{{ row.arrived|num }}</td>
+        <td class="num{% if row.remaining_end is None %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
+        <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
+        <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6"><p class="empty">Станциялар йўқ</p></td></tr>
+      {% endfor %}
+    </tbody>
+    {% if station_rows %}
+    <tfoot>
+      <tr class="total">
+        <th scope="row">Жами</th>
+        <td class="num{% if total.unloaded is None %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
+        <td class="num{% if total.arrived is None %} is-missing{% endif %}">{{ total.arrived|num }}</td>
+        <td class="num{% if total.remaining_end is None %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
+        <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
+        <td class="num">{{ total.overrides }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+
+{{ chart|json_script:"chart-data" }}
+<script src="{% static 'hisobot/chart.umd.min.js' %}" defer></script>
+<script src="{% static 'hisobot/charts.js' %}" defer></script>
+{% endblock %}
