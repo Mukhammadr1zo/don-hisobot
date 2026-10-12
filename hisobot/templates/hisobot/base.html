@@ -40,7 +40,7 @@ Classes and markup: static/hisobot/app.css and _styleguide.html (/_uslub/ in DEB
     </nav>
     {% endwith %}
     <div class="account">
-      <span class="account-name">{% if request.user.is_boshqarma %}Бошқарма{% else %}{{ request.user.mtu.name }} МТУ{% endif %}</span>
+      <span class="account-name">{{ request.user.display_name }}</span>
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-quiet">Чиқиш</button></form>
     </div>
   {% else %}

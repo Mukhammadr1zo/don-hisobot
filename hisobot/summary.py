@@ -40,6 +40,14 @@ def _entries(stations, d_from, d_to):
     return Entry.objects.filter(station__in=stations, period_end__gte=start, period_end__lte=end)
 
 
+# A year of 200 stations is ~140 000 entries: as tuples, not models (a model and its 3 datetimes cost 3x).
+_ROW = ("station_id", "period_end", "unloaded", "arrived", "remaining_calc", "remaining_override")
+
+
+def _remaining(row):
+    return row.remaining_calc if row.remaining_override is None else row.remaining_override
+
+
 def _known_sum(values):
     known = [v for v in values if v is not None]
     return sum(known) if known else None
@@ -63,7 +71,7 @@ def summary(stations, d_from, d_to, *, now) -> tuple[list[SummaryRow], list[Summ
     stations = list(stations.select_related("mtu"))
     ended = [pe for day in _days(d_from, d_to) for pe in periods.ends_for(day) if pe <= now]
     entries = {}
-    for entry in _entries(stations, d_from, d_to):
+    for entry in _entries(stations, d_from, d_to).values_list(*_ROW, named=True):
         entries.setdefault(entry.station_id, []).append(entry)
     stock = reports.remaining_at(stations, periods.ends_for(d_to)[1])
     rows = []
@@ -81,7 +89,7 @@ def summary(stations, d_from, d_to, *, now) -> tuple[list[SummaryRow], list[Summ
                 stock[station.id],
                 len(mine),
                 len(mine) + missing,
-                sum(e.overridden for e in mine),
+                sum(_remaining(e) != e.remaining_calc for e in mine),
             )
         )
     groups = {}
@@ -99,8 +107,8 @@ def daily_series(stations, d_from, d_to, *, now) -> dict:
     stations = list(stations)
     # The stock rule of reports, rolled forward one period at a time as reports.daily_rows does:
     # remaining_at per day would cost a query per day.
-    last = reports._latest(stations, period_end__lt=periods.ends_for(d_from)[0])
-    entered = {(e.station_id, e.period_end): e for e in _entries(stations, d_from, d_to)}
+    last = {i: e.remaining for i, e in reports._latest(stations, period_end__lt=periods.ends_for(d_from)[0]).items()}
+    entered = {(e.station_id, e.period_end): e for e in _entries(stations, d_from, d_to).values_list(*_ROW, named=True)}
     series = {"labels": [], "unloaded": [], "arrived": [], "remaining": [], "missing": []}
     for day in _days(d_from, d_to):
         series["labels"].append(f"{day:%d.%m.%Y}")
@@ -115,13 +123,15 @@ def daily_series(stations, d_from, d_to, *, now) -> dict:
             for station in stations:
                 entry = entered.get((station.id, pe))
                 if entry:
-                    last[station.id] = entry
+                    last[station.id] = _remaining(entry)
                     found.append(entry)
                 elif pe <= now and station.expects(pe):
                     missing += 1
         series["unloaded"].append(_known_sum(e.unloaded for e in found))
         series["arrived"].append(_known_sum(e.arrived for e in found))
-        series["remaining"].append(_known_sum(reports._stock(s, last.get(s.id), ends[1]) for s in stations))
+        series["remaining"].append(
+            _known_sum(last[s.id] if s.id in last else reports._stock(s, None, ends[1]) for s in stations)
+        )
         series["missing"].append(missing)
     return series
 

@@ -124,11 +124,11 @@ def _history(entry):
     """Every change of the entry, newest first: (change, who, [(label, old, new), ...])."""
     if entry is None:
         return []
-    changes = Change.objects.filter(entry=entry).select_related("user", "cause__entry").order_by("-at", "-id")
+    changes = Change.objects.filter(entry=entry).select_related("user__mtu", "cause__entry").order_by("-at", "-id")
     return [
         (
             change,
-            change.user.username if change.user else "Станция (ПИН)",
+            change.user.display_name if change.user else "Станция (ПИН)",
             [
                 (label, change.old.get(key), change.new[key])
                 for key, label in FIELDS.items()

@@ -12,4 +12,15 @@
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 	}
+
+	# Errors Caddy raises itself would otherwise be blank pages. Django's own 404/500 pass through unchanged.
+	handle_errors 413 {
+		header Content-Type "text/html; charset=utf-8"
+		respond `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Файл жуда катта</title><p>Файл ҳажми 1 МБ дан ошмаслиги керак.</p><p><a href="/">Бош саҳифа</a></p>` 413
+	}
+	handle_errors 502 503 504 {
+		header Content-Type "text/html; charset=utf-8"
+		header Retry-After 30
+		respond `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Тизим қайта ишга тушмоқда</title><p>Тизим қайта ишга тушмоқда. Бир дақиқадан сўнг саҳифани янгиланг.</p>` 503
+	}
 }

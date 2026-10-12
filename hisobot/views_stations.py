@@ -4,7 +4,7 @@ import secrets
 
 from django import forms
 from django.contrib import messages
-from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import password_validation, update_session_auth_hash
 from django.db import transaction
 from django.db.models import Max
 from django.http import Http404
@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from . import access, balance, roster
 from .forms import REQUIRED
 from .models import Change, Mtu, Station, User, validate_station_name
+from .views_public import TOO_MANY
 
 TAKEN = "Бу МТУда шундай номли станция бор."
 HISTORY_KINDS = ["station", "pin", "unlock", "opening"]
@@ -87,19 +88,31 @@ class PasswordForm(forms.Form):
     new = _password("Янги парол", "new-password")
     again = _password("Янги парол (такрор)", "new-password")
 
-    def __init__(self, *args, user, **kwargs):
+    def __init__(self, *args, request, **kwargs):
         super().__init__(*args, **kwargs)
-        self.user = user
+        self.request = request
 
     def clean_current(self):
-        if not self.user.check_password(self.cleaned_data["current"]):
+        # Throttled like the sign-in: a session left open must not become a way to guess its own password.
+        result = access.staff_recheck(self.request, self.cleaned_data["current"])
+        if result is access.Login.THROTTLED:
+            raise forms.ValidationError(TOO_MANY)
+        if result is not access.Login.OK:
             raise forms.ValidationError("Жорий парол нотўғри.")
         return self.cleaned_data["current"]
 
     def clean_new(self):
-        if len(self.cleaned_data["new"]) < 10:
+        new = self.cleaned_data["new"]
+        if len(new) < 10:
             raise forms.ValidationError("Парол камида 10 белгидан иборат бўлиши керак.")
-        return self.cleaned_data["new"]
+        try:
+            password_validation.validate_password(new, self.request.user)
+        except forms.ValidationError:
+            # Django's own messages are English (USE_I18N is off): one Cyrillic message for all of them.
+            raise forms.ValidationError(
+                "Парол жуда оддий ёки логинга ўхшаш. Тахмин қилиш қийин парол танланг."
+            ) from None
+        return new
 
     def clean(self):
         new, again = self.cleaned_data.get("new"), self.cleaned_data.get("again")
@@ -234,7 +247,7 @@ def edit(request, station_id):
             return redirect("station_edit", station_id=station.pk)
 
     changes = (
-        Change.objects.filter(station=station, kind__in=HISTORY_KINDS).select_related("user").order_by("-at", "-pk")
+        Change.objects.filter(station=station, kind__in=HISTORY_KINDS).select_related("user__mtu").order_by("-at", "-pk")
     )
     now = timezone.now()
     context = {
@@ -360,7 +373,7 @@ def import_roster(request):
 
 @access.staff_required
 def password_change(request):
-    form = PasswordForm(request.POST if request.method == "POST" else None, user=request.user)
+    form = PasswordForm(request.POST if request.method == "POST" else None, request=request)
     if request.method == "POST" and form.is_valid():
         request.user.set_password(form.cleaned_data["new"])
         request.user.save(update_fields=["password"])

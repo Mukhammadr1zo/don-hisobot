@@ -42,6 +42,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "hisobot.middleware.method_not_allowed",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -77,6 +78,15 @@ AUTH_USER_MODEL = "hisobot.User"
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     "hisobot.access.PinHasher",  # station PINs only
+]
+
+# The «Парол» form and `manage.py changepassword` (README's boshqarma reset) both validate through these.
+# The seven logins are public (seed, README) and sign-in is limited per IP only: a common password is the risk.
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 10}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 USE_I18N = False

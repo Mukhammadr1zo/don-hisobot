@@ -5,6 +5,7 @@ import zipfile
 import zlib
 from datetime import timedelta
 from io import BytesIO
+from unittest import mock
 
 from django.contrib.auth.hashers import check_password
 from django.contrib.messages import get_messages
@@ -15,7 +16,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 
 from hisobot import access, balance, periods, roster
-from hisobot.models import Change, Mtu, Station, User
+from hisobot.models import Change, LoginFailure, Mtu, Station, User
 
 HEADER = ("МТУ", "Станция номи")
 PIN_ON_SHEET = re.compile(r"<small>ПИН</small>\s*(\d{4} \d{4})")
@@ -371,7 +372,7 @@ class PinSheetTests(StationsTestCase):
         self.assertEqual(self.stored(self.station).pin_hash, "")
 
     def test_get_is_not_allowed(self):
-        self.assertEqual(self.client.get(reverse("pin_sheet")).status_code, 405)
+        self.assertContains(self.client.get(reverse("pin_sheet")), "тугма орқали очилади", status_code=405)
 
     def test_regenerate_pin_shows_one_strip_and_ends_the_station_session(self):
         station_client = Client()
@@ -633,7 +634,10 @@ class EditTests(StationsTestCase):
         events = ["Давр бошидаги қолдиқ", "Номи: Чуқурсой → Чуқурсой-2", "Блокдан чиқарилди", "ПИН янгиланди"]
         positions = [content.index(event, content.index("Тарих")) for event in events]
         self.assertEqual(positions, sorted(positions))
-        self.assertIn("boshqarma", content)
+        history = content[content.index("Тарих"):]
+        self.assertIn("<td>Бошқарма</td>", history)
+        self.assertIn("<td>Тошкент МТУ</td>", history)
+        self.assertNotIn("boshqarma", history)
 
 
 class ScopeTests(StationsTestCase):
@@ -693,6 +697,28 @@ class PasswordTests(StationsTestCase):
         self.assertContains(self.change("a-secret-123", "long-enough-1", "long-enough-2"), "бир хил эмас")
         self.assertContains(self.change("", "", ""), "Майдонни тўлдиринг")
         self.assertTrue(User.objects.get(pk=self.user_a.pk).check_password("a-secret-123"))
+
+    def test_a_common_or_login_like_password_is_refused(self):
+        self.login(self.user_a)
+        for weak in ["1234567890", "toshkent12", "qwertyuiop", "password123"]:
+            with self.subTest(weak=weak):
+                self.assertContains(self.change("a-secret-123", weak, weak), "Парол жуда оддий ёки логинга ўхшаш")
+        self.assertTrue(User.objects.get(pk=self.user_a.pk).check_password("a-secret-123"))
+
+    def test_guessing_the_current_password_is_throttled_like_the_sign_in(self):
+        self.login(self.user_a)
+        for _ in range(10):
+            self.assertContains(self.change("wrong", "long-enough-1", "long-enough-1"), "Жорий парол нотўғри")
+        self.assertEqual(LoginFailure.objects.filter(username="toshkent").count(), 10)
+        with mock.patch.object(User, "check_password") as check:
+            self.assertContains(self.change("a-secret-123", "long-enough-1", "long-enough-1"), "Жуда кўп уриниш")
+        check.assert_not_called()
+        response = self.client.post(
+            reverse("password_change"),
+            {"current": "a-secret-123", "new": "long-enough-1", "again": "long-enough-1"},
+            REMOTE_ADDR="10.0.0.9",
+        )
+        self.assertRedirects(response, reverse("staff_now"), fetch_redirect_response=False)
 
     def test_password_change_keeps_the_session(self):
         self.login(self.user_a)

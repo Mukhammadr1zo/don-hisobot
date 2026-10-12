@@ -84,7 +84,7 @@
       {% for change, text in history %}
       <tr>
         <td class="nowrap">{{ change.at|dt }}</td>
-        <td>{% if change.user %}{{ change.user.username }}{% else %}Станция (ПИН){% endif %}</td>
+        <td>{% if change.user %}{{ change.user.display_name }}{% else %}Станция (ПИН){% endif %}</td>
         <td>{{ text }}</td>
       </tr>
       {% endfor %}

@@ -132,7 +132,7 @@ def export_daily(stations, report_date, *, user, now) -> bytes:
 
     out.row += 1
     out.note(f"Яратилган: {periods.local(now):%d.%m.%Y %H:%M}")
-    out.note(f"Аккаунт: {user.username}")
+    out.note(f"Аккаунт: {user.display_name}")
     out.note(f"Киритмаган станциялар сони: {totals.missing}")
     out.note("12* — бир давр киритилмаган, сутка жами тўлиқ эмас")
     out.note(

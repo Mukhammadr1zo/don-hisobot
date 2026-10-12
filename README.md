@@ -52,6 +52,9 @@ Quyidagi buyruqlar root sifatida bajariladi (`sudo -i`).
 Server soati to'g'ri bo'lishi shart: davrlar 08:00 va 20:00 da ochiladi va stansiya oynasi 24 soat.
 `timedatectl` da `System clock synchronized: yes` bo'lsin (yo'q bo'lsa: `timedatectl set-ntp true`).
 Firewall ishlatilsa, faqat 22, 80 va 443 ochiq bo'lsin (`ufw allow OpenSSH; ufw allow 80,443/tcp; ufw enable`).
+80 va 443 portlarni boshqa dastur egallamagan bo'lsin: `ss -Hltun '( sport = :80 or sport = :443 )'` hech narsa
+chiqarmasligi kerak. Chiqarsa (odatda apache2 yoki nginx), o'sha xizmatni butunlay o'chiring, aks holda u qayta
+yuklashda portni yana egallaydi: `systemctl disable --now apache2` (yoki `nginx`).
 
 ```sh
 git clone <repo> /opt/don-hisobot && cd /opt/don-hisobot
@@ -61,13 +64,28 @@ docker compose exec web python manage.py seed
 curl https://<domen>/healthz             # {"ok": true, "time": "..."}
 ```
 
-`SECRET_KEY` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
+`SECRET_KEY` va `DB_PASSWORD` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+`DB_PASSWORD` bazaga faqat birinchi `docker compose up` da yoziladi (`pgdata` tomi bo'sh bo'lganda); keyin `.env` da
+o'zgartirish bazani o'zgartirmaydi va web ulana olmaydi (`password authentication failed`). Almashtirish kerak
+bo'lsa, avval bazada: `docker compose exec db psql -U hisobot -c "ALTER USER hisobot PASSWORD 'yangi'"`, so'ng
+`.env` ni o'zgartirib `docker compose up -d --wait`. `docker compose down -v` ishlatmang: u bazani o'chiradi.
 
-Yangilash: `git pull && docker compose up -d --build --wait`.
-Loglar: `docker compose logs -f web` (xatolar traceback bilan shu yerda).
+`up` «address already in use» bilan to'xtagan bo'lsa: portni bo'shatib, `docker compose up -d --wait
+--force-recreate caddy` bajaring (oddiy qayta `up` Caddy ni portsiz ishga tushirishi mumkin).
+
+Yangilash (avval zaxira; Caddy `Caddyfile` o'zgarishini faqat qayta ishga tushganda ko'radi):
+
+```sh
+./backup.sh && git pull && docker compose up -d --build --wait && docker compose restart caddy
+```
+
+Loglar: `docker compose logs -f web` (ilova xatolari traceback bilan shu yerda). HTTPS/sertifikat muammosi
+(`curl` TLS xatosi bersa) `docker compose logs caddy` da ko'rinadi: domen A yozuvi server IP siga qaraganini va
+80/443 portlar tashqaridan ochiqligini tekshiring.
 
 Ishga tushgandan keyin tekshiring:
-- `docker compose ps`: uchala xizmat `healthy`.
+- `docker compose ps`: `db` va `web` `healthy`; `caddy` da healthcheck yo'q, u `Up` va PORTS ustunida
+  `0.0.0.0:80` va `0.0.0.0:443` ko'rinadi. Haqiqiy tekshiruv: `curl https://<domen>/healthz` → `"ok": true`.
 - Telefondan noto'g'ri PIN kiriting, so'ng
   `docker compose exec db psql -U hisobot -tAc "select ip from hisobot_loginfailure order by at desc limit 1"`
   telefonning haqiqiy IP sini ko'rsatsin. Har doim `172.x.x.1` chiqsa, mijozlar IPv6 orqali Docker proksisidan
@@ -99,16 +117,27 @@ Zaxira fayllari faqat egasiga o'qiladi (ularda PIN va parol xeshlari bor).
 
 ### Tiklash
 
+Baza yangidan yaratiladi va zaxira bitta tranzaksiyada to'liq yoziladi; keyin `migrate` sxemani joriy kodga
+olib chiqadi. Birinchi qator hozirgi holatni ham saqlaydi: `dropdb` uni o'chiradi.
+
 ```sh
+./backup.sh
 docker compose stop web
-docker compose exec -T db pg_restore -U hisobot -d hisobot --clean --if-exists < backups/hisobot-2026-10-12_2200.dump
-docker compose start web
+docker compose exec -T db dropdb -U hisobot --maintenance-db=postgres hisobot
+docker compose exec -T db createdb -U hisobot hisobot
+docker compose exec -T db pg_restore -U hisobot -d hisobot --single-transaction --exit-on-error < backups/hisobot-2026-10-12_2200.dump
+docker compose up -d --wait
 ```
 
-Sessiyalar zaxiraga kirmaydi: tiklangandan keyin hamma qayta kiradi.
+`pg_restore` xato chiqarsa, web ni ishga tushirmang: baza bo'sh qoladi. Boshqa `.dump` bilan qayta urinib ko'ring
+yoki birinchi qatorda olingan zaxirani tiklang.
+
+Sessiyalar zaxiraga kirmaydi: tiklangandan keyin hamma qayta kiradi. Zaxiradan keyin yangilangan PIN va
+parollar ham eski holiga qaytadi: kerak bo'lsa ularni qayta yangilang.
 
 ## Parolni tiklash
 
 - Boshqarma paroli: `docker compose exec web python manage.py changepassword boshqarma`
-  (mahalliy: `uv run python manage.py changepassword boshqarma`).
+  (mahalliy: `uv run python manage.py changepassword boshqarma`). Parol kamida 10 belgi va oddiy bo'lmasligi
+  kerak; o'zgartirgandan keyin foydalanuvchi uni «Парол» sahifasida o'zinikiga almashtiradi.
 - MTU paroli: boshqarma akkauntida «МТУ пароллари» sahifasi. Yangi parol bir marta ko'rsatiladi.

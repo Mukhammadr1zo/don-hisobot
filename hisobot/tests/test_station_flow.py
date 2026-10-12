@@ -152,6 +152,8 @@ class StationFlowTests(TestCase):
         filtered = self.client.get(url, {"q": "хам"})
         self.assertContains(filtered, "Хамза")
         self.assertNotContains(filtered, "Чуқурсой")
+        # Typed on a Russian keyboard: у for ў, к for қ.
+        self.assertContains(self.client.get(url, {"q": "чукур"}), "Чуқурсой")
         self.assertEqual(self.client.get(reverse("mtu_stations", args=[999999])).status_code, 404)
 
     def test_staff_login(self):
@@ -176,7 +178,7 @@ class StationFlowTests(TestCase):
     def test_logout_is_post_only(self):
         self.login()
 
-        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
+        self.assertContains(self.client.get(reverse("logout")), "тугма орқали очилади", status_code=405)
         self.assertEqual(self.client.get(reverse("station_home")).status_code, 200)
 
         self.assertRedirects(self.client.post(reverse("logout")), reverse("home"))

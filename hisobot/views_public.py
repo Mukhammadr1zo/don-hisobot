@@ -31,13 +31,21 @@ def home(request):
     return render(request, "hisobot/public/home.html", {"mtus": mtus})
 
 
+# A Russian keyboard has no ў қ ғ ҳ: operators type у к г х, so the two spellings match alike.
+FOLD = str.maketrans("ўқғҳё", "укгхе")
+
+
+def _fold(text):
+    return text.casefold().translate(FOLD)
+
+
 def mtu_stations(request, mtu_id):
     mtu = get_object_or_404(Mtu, pk=mtu_id)
     stations = mtu.stations.filter(active_to=None).order_by("sort", "name")
     query = request.GET.get("q", "").strip()
     if query:
         # In Python: casefold() knows Cyrillic whatever the database's locale is; an MTU has a few hundred rows.
-        stations = [s for s in stations if query.casefold() in s.name.casefold()]
+        stations = [s for s in stations if _fold(query) in _fold(s.name)]
     return render(request, "hisobot/public/mtu.html", {"mtu": mtu, "stations": stations, "query": query})
 
 

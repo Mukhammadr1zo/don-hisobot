@@ -265,7 +265,7 @@ class ExportTests(DayFixture):
     def test_footer_states_time_account_missing_stations_and_the_star(self):
         text = all_text(self.sheet(self.scope(), self.boss))
         self.assertIn("Яратилган: 01.10.2026 08:00", text)
-        self.assertIn("Аккаунт: boshqarma", text)
+        self.assertIn("Аккаунт: Бошқарма", text)
         self.assertIn("Киритмаган станциялар сони: 3", text)  # =1+1, Сергели, Бета
         self.assertIn("12* — бир давр киритилмаган", text)
 
@@ -276,6 +276,7 @@ class ExportTests(DayFixture):
         self.assertNotIn("Бета", all_text(sheet))
         self.assertNotIn("Қўқон", all_text(sheet))
         self.assertIn("Киритмаган станциялар сони: 2", all_text(sheet))
+        self.assertIn("Аккаунт: Тошкент МТУ", all_text(sheet))
 
     def test_a_period_not_ended_is_blank(self):
         sheet = openpyxl.load_workbook(

@@ -36,6 +36,11 @@ class User(AbstractUser):
     def is_boshqarma(self):
         return self.mtu_id is None
 
+    @property
+    def display_name(self):
+        """The account as pages and the export name it, in Cyrillic; the Latin login is only typed."""
+        return "Бошқарма" if self.is_boshqarma else f"{self.mtu.name} МТУ"
+
 
 class Station(models.Model):
     mtu = models.ForeignKey(Mtu, on_delete=models.PROTECT, related_name="stations")

@@ -301,8 +301,9 @@ class EntryTests(StaffTestCase):
         cascade, direct = [change for change, *_ in response.context["history"]]
         self.assertEqual((cascade.user, cascade.cause.entry.period_end), (self.user_a, p1))
         self.assertEqual((direct.user, direct.cause), (None, None))
+        self.assertEqual([who for _, who, _ in response.context["history"]], ["Тошкент МТУ", "Станция (ПИН)"])
         html = response.content.decode()
-        self.assertLess(html.index("toshkent"), html.index("Станция (ПИН)"))  # newest first
+        self.assertNotIn("toshkent", html)  # the Latin login is typed, never shown
         self.assertInHTML("<div>Қолган (ҳисобланган): 12 → 13</div>", html)
         self.assertInHTML(
             f'<div class="muted small">сабаб: <a href="{entry_url(self.first, p1)}">10.10.2026 тунги давр</a>'

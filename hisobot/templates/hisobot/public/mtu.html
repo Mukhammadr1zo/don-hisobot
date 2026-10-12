@@ -27,10 +27,14 @@ with JavaScript the list also filters as you type.
   var box = document.getElementById("qidir"), none = document.getElementById("topilmadi");
   var rows = document.querySelectorAll("#stansiyalar > li");
   if (!rows.length) return;
+  // As views_public._fold: у к г х е also find ў қ ғ ҳ ё (a Russian keyboard has none of them).
+  function fold(text) {
+    return text.toLocaleLowerCase().replace(/[ўқғҳё]/g, function (c) { return "укгхе".charAt("ўқғҳё".indexOf(c)); });
+  }
   box.addEventListener("input", function () {
-    var query = box.value.trim().toLocaleLowerCase(), shown = 0;
+    var query = fold(box.value.trim()), shown = 0;
     rows.forEach(function (row) {
-      row.hidden = row.textContent.toLocaleLowerCase().indexOf(query) === -1;
+      row.hidden = fold(row.textContent).indexOf(query) === -1;
       shown += row.hidden ? 0 : 1;
     });
     none.textContent = "Топилмади";

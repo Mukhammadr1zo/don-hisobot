@@ -160,6 +160,18 @@ def staff_login(request, username, password):
     return Login.OK
 
 
+def staff_recheck(request, password):
+    """The signed-in user's own password asked again (the «Парол» page): counted and throttled like staff_login."""
+    bucket = ip_bucket(client_ip(request))
+    now = timezone.now()
+    if _failures(bucket, now - settings.STAFF_IP_WINDOW, staff=True) >= settings.STAFF_IP_FAILS:
+        return Login.THROTTLED
+    if request.user.check_password(password):
+        return Login.OK
+    _record_failure(bucket, now, username=request.user.username[:150])
+    return Login.BAD
+
+
 def logout(request):
     auth.logout(request)  # session.flush(), and request.user stops being the old user within this request
 
