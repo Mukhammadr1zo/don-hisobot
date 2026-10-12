@@ -1,0 +1,57 @@
+{% comment %}
+Blocks: title, nav, content.
+  {% block title %}Кунлик жадвал · {{ block.super }}{% endblock %}
+  {% block nav %}{% endblock %} removes the top bar (not needed for print: it is .no-print already).
+The top bar follows the principal: request.station (station pages), else request.user (staff).
+<main> is .page; it and the top bar are a narrow column unless a staff user is signed in.
+Django messages are printed above the content as notices (levels map to classes in settings.MESSAGE_TAGS).
+Classes and markup: static/hisobot/app.css and _styleguide.html (/_uslub/ in DEBUG).
+{% endcomment %}{% load static %}<!doctype html>
+<html lang="uz-Cyrl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}Дон ҳисоботи{% endblock %}</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{% static 'hisobot/app.css' %}">
+</head>
+<body>
+{% block nav %}
+<header class="topbar no-print">
+  <div class="topbar-in{% if not request.user.is_authenticated %} narrow{% endif %}">
+  {% if request.station %}
+    <a class="brand" href="{% url 'station_home' %}">Дон ҳисоботи</a>
+    <div class="account">
+      <span class="account-name">{{ request.station.name }}</span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-quiet">Чиқиш</button></form>
+    </div>
+  {% elif request.user.is_authenticated %}
+    <a class="brand" href="{% url 'staff_now' %}">Дон ҳисоботи</a>
+    {% with here=request.resolver_match.url_name %}
+    <nav class="nav" aria-label="Бўлимлар">
+      <a href="{% url 'staff_now' %}"{% if here == 'staff_now' %} aria-current="page"{% endif %}>Ҳозир</a>
+      <a href="{% url 'staff_daily' %}"{% if here == 'staff_daily' %} aria-current="page"{% endif %}>Кунлик жадвал</a>
+      <a href="{% url 'staff_report' %}"{% if here == 'staff_report' %} aria-current="page"{% endif %}>Ҳисобот</a>
+      <a href="{% url 'stations' %}"{% if here == 'stations' or here == 'station_edit' or here == 'stations_import' or here == 'pin_sheet' or here == 'station_pin' %} aria-current="page"{% endif %}>Станциялар</a>
+      <span class="nav-gap"></span>
+      {% if request.user.is_boshqarma %}<a href="{% url 'mtu_passwords' %}"{% if here == 'mtu_passwords' %} aria-current="page"{% endif %}>МТУ пароллари</a>{% endif %}
+      <a href="{% url 'password_change' %}"{% if here == 'password_change' %} aria-current="page"{% endif %}>Парол</a>
+    </nav>
+    {% endwith %}
+    <div class="account">
+      <span class="account-name">{% if request.user.is_boshqarma %}Бошқарма{% else %}{{ request.user.mtu.name }} МТУ{% endif %}</span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-quiet">Чиқиш</button></form>
+    </div>
+  {% else %}
+    <a class="brand" href="{% url 'home' %}">Дон ҳисоботи</a>
+  {% endif %}
+  </div>
+</header>
+{% endblock %}
+<main class="page{% if not request.user.is_authenticated %} narrow{% endif %}">
+{% for message in messages %}<div class="notice-{{ message.level_tag }}" role="status">{{ message }}</div>
+{% endfor %}{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,467 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% comment %}
+Every component of app.css once, with the markup to copy. DEBUG only: /_uslub/
+?kim=stansiya | mtu | mehmon shows the top bar (and the narrow column) of the other principals.
+{% endcomment %}
+{% block title %}Услублар · {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <h1>Услублар</h1>
+  <span class="spacer"></span>
+  <div class="actions">
+    <a class="btn btn-sm" href="?kim=boshqarma">Бошқарма</a>
+    <a class="btn btn-sm" href="?kim=mtu">МТУ</a>
+    <a class="btn btn-sm" href="?kim=stansiya">Станция</a>
+    <a class="btn btn-sm" href="?kim=mehmon">Меҳмон</a>
+  </div>
+</div>
+<p class="muted">Ҳар бир компонент бир марта. Белгилашни шу файлдан кўчиринг: <code>templates/hisobot/_styleguide.html</code>. Сервер вақти: {{ now|dt }}.</p>
+
+
+<h2>Хабарлар <code>.notice-*</code></h2>
+{# base.html prints Django messages exactly like this: messages.success(request, "Қабул қилинди") #}
+<div class="notice-ok" role="status">Қабул қилинди</div>
+<div class="notice-info" role="status">ПИН фақат бир марта кўрсатилади. Варақни чоп этиб, станцияга топширинг.</div>
+<div class="notice-warn" role="status">Олдинги давр киритилмаган</div>
+<div class="notice-error" role="status">
+  <p>Импорт бажарилмади, ҳеч нарса сақланмади:</p>
+  <ul>
+    <li>4-қатор: «Навоий» номли МТУ топилмади</li>
+    <li>9-қатор: станция номи = + - @ белгиси билан бошланмаслиги керак</li>
+  </ul>
+</div>
+
+
+<h2>Белгилар <code>.badge-*</code></h2>
+<div class="actions">
+  <span class="badge-ok">Қабул қилинди 08:07</span>
+  <span class="badge-warn">Топширилмаган</span>
+  <span class="badge-bad">Блокланган 14:30 гача</span>
+  <span class="badge-muted">Ўчирилган</span>
+</div>
+
+
+<h2>Тугмалар <code>.btn</code></h2>
+<div class="actions">
+  <button class="btn btn-primary">Юбориш</button>
+  <button class="btn">Сақлаш</button>
+  <a class="btn btn-quiet" href="#">Бекор қилиш</a>
+  <button class="btn btn-danger">ПИН янгилаш</button>
+  <button class="btn" disabled>08:00 да очилади</button>
+</div>
+<div class="actions">
+  <a class="btn btn-sm" href="#">Тузатиш</a>
+  <button class="btn btn-sm btn-danger">Блокдан чиқариш</button>
+  <a class="btn btn-sm btn-quiet" href="#">Excel юклаб олиш</a>
+</div>
+<div class="narrow stack">
+  <button class="btn btn-primary btn-block">Юбориш</button>
+  <button class="btn btn-block">Ҳаракат бўлмади (0 / 0)</button>
+</div>
+<a class="back" href="#">Орқага</a>
+
+
+<h2>Кўрсаткичлар <code>.card-grid</code> <code>.stat</code></h2>
+{# «Ҳозир», бошқарма: each card is a link to ?mtu=<id> #}
+<div class="card-grid">
+  <a class="card" href="#"><h3 class="card-title">Тошкент</h3><div class="stat"><span class="stat-num">14<small> / 18</small></span><span class="stat-cap">топширди</span></div><progress value="14" max="18"></progress></a>
+  <a class="card" href="#"><h3 class="card-title">Қўқон</h3><div class="stat"><span class="stat-num">22<small> / 22</small></span><span class="stat-cap">топширди</span></div><progress value="22" max="22"></progress></a>
+  <a class="card" href="#"><h3 class="card-title">Бухоро</h3><div class="stat"><span class="stat-num">9<small> / 16</small></span><span class="stat-cap">топширди</span></div><progress value="9" max="16"></progress></a>
+  <a class="card" href="#"><h3 class="card-title">Қўнғирот</h3><div class="stat"><span class="stat-num">0<small> / 11</small></span><span class="stat-cap">топширди</span></div><progress value="0" max="11"></progress></a>
+  <a class="card" href="#"><h3 class="card-title">Қарши</h3><div class="stat"><span class="stat-num">17<small> / 19</small></span><span class="stat-cap">топширди</span></div><progress value="17" max="19"></progress></a>
+  <a class="card" href="#"><h3 class="card-title">Термиз</h3><div class="stat"><span class="stat-num">12<small> / 12</small></span><span class="stat-cap">топширди</span></div><progress value="12" max="12"></progress></a>
+</div>
+<div class="card-grid">
+  <div class="card"><div class="stat"><span class="stat-num">137</span><span class="stat-cap">Туширилган</span></div></div>
+  <div class="card"><div class="stat"><span class="stat-num">142</span><span class="stat-cap">Кириб келган</span></div></div>
+  <div class="card"><div class="stat is-negative"><span class="stat-num">-3</span><span class="stat-cap">Қолган</span></div></div>
+  <div class="card"><div class="stat is-missing"><span class="stat-num">{{ None|num }}</span><span class="stat-cap">Қолган</span></div></div>
+</div>
+
+
+<h2>Давр карталари <code>.card</code> <code>.stat-row</code></h2>
+{# Станция, «Асосий»: the two open periods, newest first #}
+<div class="cols">
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">{{ pe|period_name }}</h3>
+        <p class="card-sub">{{ pe|period_range }}</p>
+      </div>
+      <span class="badge-warn">Топширилмаган</span>
+    </div>
+    <p class="card-sub">{{ pe|dt }} дан 24 соат ичида киритиш мумкин</p>
+    <a class="btn btn-primary btn-block" href="#{{ pe|slug }}">Киритиш</a>
+  </article>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">{{ prev_pe|period_name }}</h3>
+        <p class="card-sub">{{ prev_pe|period_range }}</p>
+      </div>
+      <span class="badge-ok">Қабул қилинди {{ now|t }}</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><span class="stat-num">5</span><span class="stat-cap">Туширилган</span></div>
+      <div class="stat"><span class="stat-num">3</span><span class="stat-cap">Кириб келган</span></div>
+      <div class="stat"><span class="stat-num">10</span><span class="stat-cap">Қолган</span></div>
+    </div>
+    <p class="card-sub">{{ pe|dt }} гача тузатиш мумкин</p>
+    <a class="btn btn-block" href="#{{ prev_pe|slug }}">Тузатиш</a>
+  </article>
+</div>
+<p class="muted">Кейинги давр {{ pe|t }} да очилади</p>
+
+
+<h2>Киритиш формаси <code>.field</code> <code>.num-input</code></h2>
+{# novalidate: the browser would show its own messages in its own language; the server's are Cyrillic. #}
+<div class="cols">
+  <form method="post" novalidate class="narrow stack">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% for error in hidden.errors %}<div class="notice-error" role="alert">{{ error }}</div>{% endfor %}{% endfor %}
+    <div class="stat"><span class="stat-num">12</span><span class="stat-cap">Давр бошида</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="{{ form.unloaded.id_for_label }}">{{ form.unloaded.label }}</label>
+        {{ form.unloaded }}
+        {{ form.unloaded.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.arrived.id_for_label }}">{{ form.arrived.label }}</label>
+        {{ form.arrived }}
+        {{ form.arrived.errors }}
+      </div>
+    </div>
+    <div class="card"><div class="stat"><span class="stat-num">9</span><span class="stat-cap">Қолган</span></div></div>
+    <details>
+      <summary>{{ form.override.label }}</summary>
+      <div class="field">
+        <label for="{{ form.override.id_for_label }}">Қолган</label>
+        {{ form.override }}
+        {{ form.override.errors }}
+        <p class="field-hint">Бўш қолдирилса, қолдиқ автоматик ҳисобланади.</p>
+      </div>
+    </details>
+    <button class="btn btn-primary btn-block">Юбориш</button>
+    <button class="btn btn-block" name="harakatsiz" value="1">Ҳаракат бўлмади (0 / 0)</button>
+  </form>
+
+  {# The same form after a rejected POST; the first entry of a station also asks for the opening balance. #}
+  <form method="post" novalidate class="narrow stack">
+    {% csrf_token %}
+    {% for hidden in bad_form.hidden_fields %}{{ hidden }}{% for error in hidden.errors %}<div class="notice-error" role="alert">{{ error }}</div>{% endfor %}{% endfor %}
+    <div class="notice-warn" role="status">Олдинги давр киритилмаган</div>
+    <div class="field">
+      <label for="{{ bad_form.opening.id_for_label }}">{{ bad_form.opening.label }}</label>
+      {{ bad_form.opening }}
+      {{ bad_form.opening.errors }}
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="{{ bad_form.unloaded.id_for_label }}">{{ bad_form.unloaded.label }}</label>
+        {{ bad_form.unloaded }}
+        {{ bad_form.unloaded.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ bad_form.arrived.id_for_label }}">{{ bad_form.arrived.label }}</label>
+        {{ bad_form.arrived }}
+        {{ bad_form.arrived.errors }}
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block">Юбориш</button>
+  </form>
+</div>
+
+
+<h2>Бошқа майдонлар <code>.field</code> <code>.check</code></h2>
+<form method="post" novalidate class="cols">
+  {% csrf_token %}
+  <div class="stack">
+    <div class="field">
+      <label for="sg-login">Логин</label>
+      <input type="text" id="sg-login" name="username" autocomplete="username" value="toshkent">
+    </div>
+    <div class="field">
+      <label for="sg-parol">Парол</label>
+      <input type="password" id="sg-parol" name="password" autocomplete="current-password" aria-invalid="true" aria-describedby="sg-parol-xato">
+      <p class="field-error" id="sg-parol-xato">Логин ёки парол нотўғри</p>
+    </div>
+    <div class="field">
+      <label for="sg-pin">ПИН</label>
+      <input class="num-input" type="text" id="sg-pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="0000 0000">
+    </div>
+    <button class="btn btn-primary btn-block">Кириш</button>
+  </div>
+  <div class="stack">
+    <div class="field">
+      <label for="sg-qidir">Станцияни қидириш</label>
+      <input type="search" id="sg-qidir" placeholder="Станция номи">
+    </div>
+    <div class="field">
+      <label for="sg-mtu">МТУ</label>
+      <select id="sg-mtu" name="mtu"><option>Тошкент</option><option>Қўқон</option><option>Бухоро</option></select>
+    </div>
+    <div class="field">
+      <label for="sg-fayl">Станциялар рўйхати (.xlsx)</label>
+      <input type="file" id="sg-fayl" name="file" accept=".xlsx">
+      <p class="field-hint">Биринчи қатор: МТУ | Станция номи. 1 МБ ва 1000 қаторгача.</p>
+    </div>
+    <label class="check"><input type="checkbox" name="station" value="1" checked> Чуқурсой</label>
+  </div>
+</form>
+
+
+<h2>Фильтрлар <code>.toolbar</code></h2>
+<form method="get" class="toolbar">
+  <div class="field">
+    <label for="sg-sana">Сана</label>
+    <input type="date" id="sg-sana" name="d" value="{{ now|date:'Y-m-d' }}">
+  </div>
+  <div class="field">
+    <label for="sg-mtu2">МТУ</label>
+    <select id="sg-mtu2" name="mtu"><option value="">Ҳаммаси</option><option>Тошкент</option><option>Қўқон</option></select>
+  </div>
+  <button class="btn">Кўрсатиш</button>
+  <span class="spacer"></span>
+  <a class="btn" href="#">Excel юклаб олиш</a>
+</form>
+{# Previous / next period or day. The arrows come from CSS; a link without a target is a disabled <span>. #}
+<nav class="pager" aria-label="Давр">
+  <a class="btn" href="#" aria-label="Олдинги давр"></a>
+  <div>
+    <h3>{{ pe|period_name }}</h3>
+    <p class="card-sub">{{ pe|period_range }}</p>
+  </div>
+  <span class="btn" aria-disabled="true"></span>
+</nav>
+
+
+<h2>Рўйхатлар <code>.list</code></h2>
+<div class="cols">
+  {# Tappable rows: the <a> is the whole row. #}
+  <ul class="list">
+    <li><a href="#"><span>Тошкент</span><span class="badge-muted">18 станция</span></a></li>
+    <li><a href="#"><span>Қўқон</span><span class="badge-muted">22 станция</span></a></li>
+    <li><a href="#"><span>Бухоро</span><span class="badge-muted">16 станция</span></a></li>
+  </ul>
+  {# Static rows with something on the right: use <div>. #}
+  <ul class="list">
+    <li><div><span>Чуқурсой</span><span class="badge-warn">Топширилмаган</span><a class="btn btn-sm btn-primary" href="#">Киритиш</a></div></li>
+    <li><div><span>Тошкент-Товар</span><span class="muted nowrap">5 · 3 · 10</span><span class="badge-ok">08:07</span></div></li>
+    <li><div><span>Сергели <small class="muted">· 11.10 {{ pe|period_name }}</small></span><span class="is-negative">-3</span><a class="btn btn-sm" href="#">Тузатиш</a></div></li>
+  </ul>
+</div>
+<p class="empty">Ҳамма станциялар топширди</p>
+
+
+<h2>Кунлик жадвал <code>.table</code></h2>
+<ul class="legend">
+  <li><span class="swatch is-missing"></span>Киритилмаган</li>
+  <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
+  <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
+  <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
+  <li><span>12*</span>Бир давр киритилмаган</li>
+</ul>
+{# <th> in tbody (station name) sticks on horizontal scroll; class="key" makes its header cell stick too. #}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th rowspan="2" class="nowrap">Т/Р</th>
+        <th rowspan="2" class="key">Станция номи</th>
+        <th colspan="3">20:00–08:00 оралиғида</th>
+        <th colspan="3">08:00–20:00 оралиғида</th>
+        <th rowspan="2" class="num">Сутка давомида жами туширилган вагонлар сони</th>
+      </tr>
+      <tr>
+        <th class="num">Туширилган вагонлар сони</th>
+        <th class="num">Кириб келган вагонлар сони</th>
+        <th class="num">Юк туширишда қолган вагонлар сони</th>
+        <th class="num">Туширилган вагонлар сони</th>
+        <th class="num">Кириб келган вагонлар сони</th>
+        <th class="num">Юк туширишда қолган вагонлар сони</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="group"><th colspan="9"><span>Тошкент МТУ</span></th></tr>
+      <tr>
+        <td class="num">1</td>
+        <th scope="row">Чуқурсой</th>
+        <td class="num"><a class="cell" href="#">5</a></td>
+        <td class="num"><a class="cell" href="#">3</a></td>
+        <td class="num"><a class="cell" href="#">10</a></td>
+        <td class="num"><a class="cell" href="#">7</a></td>
+        <td class="num"><a class="cell" href="#">6</a></td>
+        <td class="num"><a class="cell" href="#">9</a></td>
+        <td class="num">12</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <th scope="row">Тошкент-Товар</th>
+        <td class="num"><a class="cell" href="#">12</a></td>
+        <td class="num"><a class="cell" href="#">8</a></td>
+        <td class="num is-override"><a class="cell" href="#">4</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing is-carried"><a class="cell" href="#">4</a></td>
+        <td class="num">12*</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <th scope="row">Сергели</th>
+        <td class="num"><a class="cell" href="#">0</a></td>
+        <td class="num"><a class="cell" href="#">0</a></td>
+        <td class="num"><a class="cell" href="#">2</a></td>
+        <td class="num"><a class="cell" href="#">9</a></td>
+        <td class="num"><a class="cell" href="#">4</a></td>
+        <td class="num is-negative"><a class="cell" href="#">-3</a></td>
+        <td class="num">9</td>
+      </tr>
+      <tr class="total">
+        <td></td>
+        <th scope="row">Тошкент МТУ жами</th>
+        <td class="num">17</td>
+        <td class="num">11</td>
+        <td class="num">16</td>
+        <td class="num">16</td>
+        <td class="num">10</td>
+        <td class="num">10</td>
+        <td class="num">33*</td>
+      </tr>
+      <tr class="group"><th colspan="9"><span>Қўқон МТУ</span></th></tr>
+      <tr>
+        <td class="num">1</td>
+        <th scope="row">Фарғона-2</th>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing"><a class="cell" href="#">{{ None|num }}</a></td>
+        <td class="num is-missing">{{ None|num }}</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="total">
+        <td></td>
+        <th scope="row">Жами</th>
+        <td class="num">17</td>
+        <td class="num">11</td>
+        <td class="num">16</td>
+        <td class="num">16</td>
+        <td class="num">10</td>
+        <td class="num">10</td>
+        <td class="num">33*</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+
+<h2>Йиғма ва станциялар жадвали <code>.table</code></h2>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="key">Станция</th>
+        <th>Ҳолат</th>
+        <th>ПИН</th>
+        <th>Охирги кириш</th>
+        <th class="num">Туширилган</th>
+        <th class="num">Киритилган / кутилган</th>
+        <th>Амаллар</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row"><label class="check"><input type="checkbox" name="station" value="1"> Чуқурсой</label></th>
+        <td><span class="badge-ok">Фаол</span></td>
+        <td><span class="badge-ok">Ишлатилган</span></td>
+        <td class="nowrap">{{ now|dt }}</td>
+        <td class="num">137</td>
+        <td class="num">14 / 14</td>
+        <td><div class="actions"><a class="btn btn-sm" href="#">Тузатиш</a><form method="post">{% csrf_token %}<button class="btn btn-sm btn-danger">ПИН янгилаш</button></form></div></td>
+      </tr>
+      <tr>
+        <th scope="row"><label class="check"><input type="checkbox" name="station" value="2"> Тошкент-Товар</label></th>
+        <td><span class="badge-bad">Блокланган</span></td>
+        <td><span class="badge-warn">Ишлатилмаган</span></td>
+        <td class="nowrap">{{ None|dt }}</td>
+        <td class="num">88</td>
+        <td class="num">11 / 14</td>
+        <td><div class="actions"><a class="btn btn-sm" href="#">Тузатиш</a><form method="post">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form></div></td>
+      </tr>
+      <tr class="muted">
+        <th scope="row"><label class="check"><input type="checkbox" name="station" value="3" disabled> Сергели</label></th>
+        <td><span class="badge-muted">Ўчирилган</span></td>
+        <td><span class="badge-muted">Берилмаган</span></td>
+        <td class="nowrap">{{ None|dt }}</td>
+        <td class="num">{{ None|num }}</td>
+        <td class="num">0 / 14</td>
+        <td><div class="actions"><a class="btn btn-sm" href="#">Тузатиш</a></div></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<h2>График <code>.chart</code></h2>
+{# <div class="chart"><canvas id="..."></canvas></div>; Chart.js options: responsive: true, maintainAspectRatio: false #}
+<div class="card">
+  <h3 class="card-title">Кунлик туширилган, кириб келган, қолган</h3>
+  <div class="chart"><p class="empty">canvas</p></div>
+  <ul class="legend">
+    <li><span class="swatch" style="background: var(--chart-1)"></span>Туширилган <code>--chart-1</code></li>
+    <li><span class="swatch" style="background: var(--chart-2)"></span>Кириб келган <code>--chart-2</code></li>
+    <li><span class="swatch" style="background: var(--chart-3)"></span>Қолган <code>--chart-3</code></li>
+  </ul>
+</div>
+
+
+<h2>ПИН варақ <code>.pin-strip</code> <code>.no-print</code> <code>.print-only</code></h2>
+<div class="toolbar no-print">
+  <p class="muted">Бу қатор қоғозда кўринмайди.</p>
+  <span class="spacer"></span>
+  <button class="btn btn-primary" type="button" onclick="window.print()">Чоп этиш</button>
+</div>
+<p class="print-only">Дон ҳисоботи · ПИН варақ · {{ now|dt }}</p>
+<div class="card">
+  <div class="pin-strip">
+    <div>
+      <div class="pin-name">Чуқурсой</div>
+      <div class="muted">Тошкент МТУ</div>
+      <div class="pin-url">{{ request.scheme }}://{{ request.get_host }}/s/12/</div>
+    </div>
+    <div class="pin-code"><small>ПИН</small>4821 0937</div>
+  </div>
+  <div class="pin-strip">
+    <div>
+      <div class="pin-name">Тошкент-Товар</div>
+      <div class="muted">Тошкент МТУ</div>
+      <div class="pin-url">{{ request.scheme }}://{{ request.get_host }}/s/13/</div>
+    </div>
+    <div class="pin-code"><small>ПИН</small>7302 6615</div>
+  </div>
+</div>
+
+
+<h2>Матн ва фильтрлар</h2>
+<p>Оддий матн. <span class="muted">.muted</span> · <span class="small">.small</span> · <span class="mono">.mono 0123456789</span> · <a href="#">ҳавола</a></p>
+<p>Янги парол (бир марта кўрсатилади): <span class="secret">kT7v-Qm2x-9RdL-w4Zp</span></p>
+<div class="table-wrap narrow">
+  <table class="table">
+    <thead><tr><th class="key">Фильтр</th><th>Натижа</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>now|d</code></th><td>{{ now|d }}</td></tr>
+      <tr><th scope="row"><code>now|t</code></th><td>{{ now|t }}</td></tr>
+      <tr><th scope="row"><code>now|dt</code></th><td>{{ now|dt }}</td></tr>
+      <tr><th scope="row"><code>pe|period_name</code></th><td>{{ pe|period_name }}</td></tr>
+      <tr><th scope="row"><code>pe|period_range</code></th><td>{{ pe|period_range }}</td></tr>
+      <tr><th scope="row"><code>pe|slug</code></th><td>{{ pe|slug }}</td></tr>
+      <tr><th scope="row"><code>None|num</code>, <code>0|num</code></th><td>{{ None|num }}, {{ 0|num }}</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

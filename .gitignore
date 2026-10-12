@@ -6,3 +6,5 @@ staticfiles/
 backups/
 .superpowers/
 .impeccable/
+.playwright-mcp/
+.ruff_cache/

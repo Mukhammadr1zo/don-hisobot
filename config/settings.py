@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.contrib.messages import constants as message_levels
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -73,6 +74,10 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "hisobot.User"
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "hisobot.access.PinHasher",  # station PINs only
+]
 
 USE_I18N = False
 TIME_ZONE = "Asia/Tashkent"
@@ -82,6 +87,15 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 # Dev and tests have no collected STATIC_ROOT; without this whitenoise warns about the missing directory.
 WHITENOISE_AUTOREFRESH = DEBUG
+
+# base.html prints each message as <div class="notice-{tag}">; these are the notice classes of app.css.
+MESSAGE_TAGS = {
+    message_levels.DEBUG: "info",
+    message_levels.INFO: "info",
+    message_levels.SUCCESS: "ok",
+    message_levels.WARNING: "warn",
+    message_levels.ERROR: "error",
+}
 
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 SESSION_SAVE_EVERY_REQUEST = True
