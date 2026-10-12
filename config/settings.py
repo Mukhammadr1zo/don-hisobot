@@ -109,11 +109,15 @@ if not DEBUG:
 
 # Gunicorn configures no root logger and Django's own console handler works only with DEBUG on:
 # without this a 500 in production leaves no traceback in `docker compose logs web`.
+# On the root logger: configuring "django" itself would reset its children, runserver's request log among them.
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"stderr": {"class": "logging.StreamHandler"}},
-    "loggers": {"django": {"handlers": ["stderr"], "level": "ERROR"}},
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "handlers": {
+        "stderr": {"class": "logging.StreamHandler", "level": "ERROR", "filters": ["require_debug_false"]},
+    },
+    "root": {"handlers": ["stderr"], "level": "ERROR"},
 }
 
 PIN_LOCK_EVERY = 5

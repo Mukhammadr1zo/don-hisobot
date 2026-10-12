@@ -43,13 +43,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Healthy once migrate has finished and gunicorn answers: `docker compose up --wait` returns only then.
+    # Healthy once gunicorn listens, which the CMD reaches only after migrate: `docker compose up --wait` returns then.
+    # A TCP connect writes no access-log line (an HTTP check would, every 10 s).
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import os, urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/healthz', headers={'Host': os.environ['ALLOWED_HOSTS']}), timeout=5)"
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 5).close()"]
       interval: 10s
       timeout: 6s
       retries: 6

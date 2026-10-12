@@ -346,6 +346,7 @@ class ViewTests(DayFixture):
         self.assertContains(response, "Оралиқда киритилмаган станция-даврлар: 19")
         self.assertContains(response, f'href="{reverse("staff_export")}?d=2026-09-12"')
         self.assertContains(response, "Excel юклаб олиш")
+        self.assertContains(response, '<form method="get" class="toolbar no-print" novalidate>')  # not on paper
 
     def test_report_page_for_an_mtu_user_compares_its_stations(self):
         self.login(self.tashkent)

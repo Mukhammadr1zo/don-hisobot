@@ -130,7 +130,25 @@
             indexAxis: "y",
             interaction: { mode: "index", axis: "y", intersect: false },
             plugins: quiet,
-            scales: { x: valueAxis, y: { grid: { display: false }, border: { color: grid } } },
+            scales: {
+              x: valueAxis,
+              y: {
+                grid: { display: false },
+                border: { color: grid },
+                ticks: {
+                  // Chart.js gives this axis at most half the width and cuts longer labels at the left edge:
+                  // wrap a long name after its hyphens and spaces. The tooltip keeps the whole name.
+                  callback(value) {
+                    const lines = [];
+                    for (const part of this.getLabelForValue(value).split(/(?<=[-\s])/)) {
+                      if (lines.length && (lines[lines.length - 1] + part).length <= 18) lines[lines.length - 1] += part;
+                      else lines.push(part);
+                    }
+                    return lines;
+                  },
+                },
+              },
+            },
           },
         }),
       );

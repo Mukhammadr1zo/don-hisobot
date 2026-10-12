@@ -33,9 +33,15 @@ def _number(label, top):
     )
 
 
+class _NameField(forms.CharField):
+    def to_python(self, value):
+        # As roster._text reads a cell: any run of whitespace, a no-break space included, is one space.
+        return " ".join(super().to_python(value).split())
+
+
 def _name():
     # No max_length here: validate_station_name covers it, in Cyrillic.
-    return forms.CharField(
+    return _NameField(
         label="Станция номи",
         validators=[validate_station_name],
         error_messages={"required": REQUIRED},
@@ -159,6 +165,7 @@ def index(request):
         "groups": by_mtu.items(),
         "mtu": mtu,
         "mtus": access.mtus_for(request.user) if request.user.is_boshqarma else None,
+        "query": _filter(request, mtu),
         "pin_url": reverse("pin_sheet") + _filter(request, mtu),
     }
     return render(request, "hisobot/staff/stations.html", context)
@@ -303,9 +310,10 @@ def regenerate_pin(request, station_id):
 @require_POST
 def unlock(request, station_id):
     station = _station(request, station_id)
+    _, mtu = access.scope(request)  # the list's ?mtu=, to go back to it
     access.unlock(station, actor=request.user, ip=access.client_ip(request))
     messages.success(request, f"{station.name}: блокдан чиқарилди")
-    return redirect("stations")
+    return redirect(reverse("stations") + _filter(request, mtu))
 
 
 @access.staff_required

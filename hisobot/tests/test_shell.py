@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
@@ -308,3 +309,10 @@ class ErrorPageTests(TestCase):
         with self.assertNumQueries(0):
             html = render_to_string("500.html")
         self.assertIn("Хатолик юз берди", html)
+
+
+class LoggingTests(SimpleTestCase):
+    def test_errors_reach_stderr_and_runserver_keeps_its_request_log(self):
+        # Configuring the "django" logger itself would reset django.server, runserver's request log.
+        self.assertTrue(logging.getLogger("django.server").handlers)
+        self.assertIn("stderr", {h.name for h in logging.getLogger().handlers})

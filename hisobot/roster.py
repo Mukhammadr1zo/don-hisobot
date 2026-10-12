@@ -10,7 +10,10 @@ from openpyxl import load_workbook
 from .models import Mtu, Station, validate_station_name
 
 MAX_BYTES = 1024 * 1024
-MAX_UNZIPPED = 20 * 1024 * 1024  # a real roster of 1000 rows unpacks to well under 1 MB
+# openpyxl's work and memory grow with the unpacked XML, up to 100 times its size. A 1000-row roster with
+# 100-letter names unpacks to about 350 KB, the customer's template to 22 KB.
+MAX_UNZIPPED = 2 * 1024 * 1024
+MAX_STYLES = 256 * 1024  # read in full into one object per style; a plain roster's is a few KB
 MAX_ROWS = 1000
 EXCEL_ROWS = 1_048_576  # Excel's own last row: a file cannot claim rows beyond it
 HEADER = ["мту", "станция номи"]
@@ -27,6 +30,29 @@ def _text(value):
     return "" if value is None else " ".join(str(value).split())
 
 
+def _unpacked(data):
+    """The archive re-packed uncompressed, counting the bytes that really come out.
+
+    The sizes stored in the file are the uploader's word, and zipfile's read() with no size, as openpyxl calls it,
+    inflates a whole member before cutting it to its stored size; read(size) inflates at most `size` a call.
+    """
+    out, total = BytesIO(), 0
+    with zipfile.ZipFile(BytesIO(data)) as source, zipfile.ZipFile(out, "w") as target:  # "w" stores, no compression
+        for info in source.infolist():
+            limit = MAX_STYLES if info.filename == "xl/styles.xml" else MAX_UNZIPPED
+            parts, size = [], 0
+            with source.open(info) as member:
+                while chunk := member.read(64 * 1024):
+                    size += len(chunk)
+                    total += len(chunk)
+                    if size > limit or total > MAX_UNZIPPED:
+                        raise ValueError("unpacks too large")
+                    parts.append(chunk)
+            target.writestr(info.filename, b"".join(parts))
+    out.seek(0)
+    return out
+
+
 def _read(file):
     """The header and the non-blank rows after it as (row number, MTU, name), cells trimmed."""
     data = file.read(MAX_BYTES + 1)
@@ -34,10 +60,7 @@ def _read(file):
         raise RosterError(["Файл ҳажми 1 МБ дан ошмаслиги керак."])
     try:
         # The upload limit counts compressed bytes; a few hundred KB can unpack to gigabytes.
-        with zipfile.ZipFile(BytesIO(data)) as archive:
-            if sum(info.file_size for info in archive.infolist()) > MAX_UNZIPPED:
-                raise ValueError("unpacks too large")
-        workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
+        workbook = load_workbook(_unpacked(data), read_only=True, data_only=True)
         try:
             sheet = workbook.worksheets[0]
             sheet.reset_dimensions()  # read-only mode trusts the file's <dimension>, which some exporters write stale

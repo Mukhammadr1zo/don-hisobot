@@ -13,13 +13,13 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
     <p class="muted">{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %} · {{ d_from|d }} – {{ d_to|d }}</p>
   </div>
   <span class="spacer"></span>
-  <div>
+  <div class="no-print">
     <a class="btn" href="{{ export_url }}">Excel юклаб олиш</a>
     <p class="muted small">{{ d_to|d }} кунлик жадвали</p>
   </div>
 </div>
 
-<form method="get" class="toolbar" novalidate>
+<form method="get" class="toolbar no-print" novalidate>
   <div class="actions" role="group" aria-label="Тайёр оралиқлар">
     {% for preset in presets %}<a class="btn{% if preset.current %} btn-primary{% endif %}" href="{{ preset.url }}"{% if preset.current %} aria-current="true"{% endif %}>{{ preset.name }}</a>
     {% endfor %}

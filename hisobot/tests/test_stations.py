@@ -1,5 +1,8 @@
 import re
+import struct
+import tracemalloc
 import zipfile
+import zlib
 from datetime import timedelta
 from io import BytesIO
 
@@ -56,6 +59,33 @@ def with_sheet(upload, change, extra=None):
         for name, data in (extra or {}).items():
             out.writestr(name, data)
     return SimpleUploadedFile("stansiyalar.xlsx", target.getvalue(), content_type=XLSX)
+
+
+def lying(upload, name, padding):
+    """The upload with `padding` bytes deflated after member `name`, but its stored size and CRC still the real ones.
+
+    zipfile believes the stored size; read() with no size used to inflate the whole stream before cutting it.
+    """
+    source = zipfile.ZipFile(BytesIO(upload.read()))
+    real = source.read(name)
+    padded = BytesIO()
+    with zipfile.ZipFile(padded, "w", zipfile.ZIP_DEFLATED) as out:
+        for item in source.infolist():
+            out.writestr(item.filename, real + padding if item.filename == name else source.read(item.filename))
+    data = bytearray(padded.getvalue())
+    crc, size = struct.pack("<I", zlib.crc32(real)), struct.pack("<I", len(real))
+    local = zipfile.ZipFile(BytesIO(bytes(data))).getinfo(name).header_offset
+    data[local + 14:local + 18], data[local + 22:local + 26] = crc, size
+    end = data.rindex(b"PK\x05\x06")  # end of central directory: where the directory starts
+    central = struct.unpack("<I", data[end + 16:end + 20])[0]
+    while True:
+        length = struct.unpack("<H", data[central + 28:central + 30])[0]
+        if data[central + 46:central + 46 + length] == name.encode():
+            break
+        extra, comment = struct.unpack("<HH", data[central + 30:central + 34])
+        central += 46 + length + extra + comment
+    data[central + 16:central + 20], data[central + 24:central + 28] = crc, size
+    return SimpleUploadedFile("stansiyalar.xlsx", bytes(data), content_type=XLSX)
 
 
 def messages_of(response):
@@ -202,6 +232,31 @@ class RosterTests(StationsTestCase):
         bomb = with_sheet(xlsx(("Тошкент", "Янгийўл")), str, {"xl/media/pad.bin": b"\0" * (roster.MAX_UNZIPPED + 1)})
         self.assertLess(bomb.size, 1024 * 1024)
         self.assertRejected(bomb, errors=["Файлни ўқиб бўлмади. Excel (.xlsx) файлини юкланг."])
+
+    def test_stored_sizes_are_not_believed(self):
+        # 50 MB of padding deflate to about 50 KB; the stored size says the theme part is its real few KB.
+        upload = lying(xlsx(("Тошкент", "Янгийўл")), "xl/theme/theme1.xml", b" " * (50 * 1024 * 1024))
+        self.assertLess(upload.size, 1024 * 1024)
+        tracemalloc.start()
+        try:
+            added = roster.import_roster(upload, user=self.boss)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        self.assertEqual(added, 1)
+        self.assertLess(peak, 20 * 1024 * 1024)  # inflating the member whole took about 130 MB
+
+    def test_a_huge_styles_part_is_rejected(self):
+        styles = "<cellXfs>" + "<xf/>" * (roster.MAX_STYLES // 5) + "</cellXfs>"
+        upload = with_sheet(xlsx(("Тошкент", "Янгийўл")), str)
+        source, target = zipfile.ZipFile(BytesIO(upload.read())), BytesIO()
+        with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
+            for item in source.infolist():
+                data = source.read(item.filename)
+                if item.filename == "xl/styles.xml":
+                    data = data.decode().replace("</styleSheet>", styles + "</styleSheet>").encode()
+                out.writestr(item.filename, data)
+        self.assertRejected(SimpleUploadedFile("stansiyalar.xlsx", target.getvalue()))
 
     def test_a_stale_dimension_does_not_hide_rows(self):
         # Read-only openpyxl stops at the stored <dimension>; some exporters write a header-only one.
@@ -416,7 +471,7 @@ class StationIndexTests(StationsTestCase):
 
     def test_bad_names_are_refused(self):
         self.login(self.user_a)
-        for name in ["чуқурсой", "=1+1", "", "Альфа\x0bбекат"]:
+        for name in ["чуқурсой", "=1+1", "", "   ", "Альфа\x01бекат", "Альфа\u200bбекат"]:
             with self.subTest(name=name):
                 response = self.client.post(reverse("stations"), {"name": name})
                 self.assertEqual(response.status_code, 200)
@@ -435,6 +490,28 @@ class StationIndexTests(StationsTestCase):
         self.assertEqual((self.stored(self.station).locked_until, self.stored(self.station).fail_streak), (None, 5))
         self.assertEqual(Change.objects.get().kind, "unlock")
         self.assertEqual(self.client.get(reverse("station_unlock", args=[self.station.pk])).status_code, 405)
+
+    def test_unlock_keeps_the_boshqarmas_mtu_filter(self):
+        Station.objects.filter(pk=self.station.pk).update(locked_until=timezone.now() + timedelta(hours=1))
+        self.login(self.boss)
+        listing = self.client.get(reverse("stations"), {"mtu": self.mtu_a.pk})
+        url = f"{reverse('station_unlock', args=[self.station.pk])}?mtu={self.mtu_a.pk}"
+        self.assertContains(listing, f'action="{url}"')
+
+        response = self.client.post(url)
+
+        self.assertRedirects(response, f"{reverse('stations')}?mtu={self.mtu_a.pk}", fetch_redirect_response=False)
+        self.assertIsNone(self.stored(self.station).locked_until)
+
+    def test_the_form_reads_a_name_as_the_import_reads_a_cell(self):
+        # A no-break space or a double space pasted from the roster file: one station, not a refusal or a twin.
+        self.login(self.user_a)
+        self.client.post(reverse("stations"), {"name": "Ғузор\xa0 2"})
+        self.assertEqual(self.names(self.mtu_a), [("Чуқурсой", 1), ("Ғузор 2", 2)])
+        self.assertEqual(roster.import_roster(xlsx(("Тошкент", "Ғузор  2")), user=self.user_a), 0)
+        edit = reverse("station_edit", args=[self.station.pk])
+        self.client.post(edit, {"form": "station", "name": "Чуқур\tсой", "sort": "1"})
+        self.assertEqual(self.stored(self.station).name, "Чуқур сой")
 
 
 class ToggleTests(StationsTestCase):

@@ -51,7 +51,7 @@ Quyidagi buyruqlar root sifatida bajariladi (`sudo -i`).
 ```sh
 git clone <repo> /opt/don-hisobot && cd /opt/don-hisobot
 cp .env.example .env && chmod 600 .env   # DOMAIN, SECRET_KEY, DB_PASSWORD ni to'ldiring
-docker compose up -d --build --wait      # migratsiyalar tugab, web /healthz ga javob berguncha kutadi
+docker compose up -d --build --wait      # migratsiyalar tugab, web ishga tushguncha kutadi
 docker compose exec web python manage.py seed
 curl https://<domen>/healthz             # {"ok": true, "time": "..."}
 ```
