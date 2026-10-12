@@ -66,7 +66,8 @@ class UrlTests(SimpleTestCase):
 
 class HealthzTests(TestCase):
     def test_healthz_reports_ok_and_tashkent_time(self):
-        response = self.client.get(reverse("healthz"))
+        with self.assertNumQueries(1):  # the database round trip
+            response = self.client.get(reverse("healthz"))
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIs(data["ok"], True)

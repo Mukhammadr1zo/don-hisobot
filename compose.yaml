@@ -31,6 +31,7 @@ services:
     restart: unless-stopped
     environment:
       DEBUG: "0"
+      TZ: Asia/Tashkent  # gunicorn's own log lines in local time, like the app's
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required in .env}
       TRUST_PROXY: "1"
       ALLOWED_HOSTS: ${DOMAIN}

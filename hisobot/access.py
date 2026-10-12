@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from .models import Change, LoginFailure, Mtu, Station
 
+
 class PinHasher(PBKDF2PasswordHasher):
     # ponytail: 8 digits fall to offline guessing whatever one hash costs; the lock ladder is the defence.
     # The default cost (about 0.5 s) would make a 200-station PIN sheet a 90-second request.

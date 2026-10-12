@@ -242,8 +242,8 @@ code { padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; back
 .account-name { overflow: hidden; font-size: 0.9375rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .account form { flex: none; }
 
-.nav { order: 1; flex: 0 0 calc(100% + 32px); display: flex; margin: 0 -16px; padding: 0 6px; border-top: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
-.nav::-webkit-scrollbar { display: none; }
+/* On a phone the links wrap to a second row: a sideways-scrolling bar hid «Станциялар» and «Парол» off-screen. */
+.nav { order: 1; flex: 0 0 calc(100% + 32px); display: flex; flex-wrap: wrap; margin: 0 -16px; padding: 0 6px; border-top: 1px solid var(--line); }
 .nav a { flex: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-bottom: 3px solid transparent; border-top: 3px solid transparent; color: var(--muted); font-weight: 600; text-decoration: none; white-space: nowrap; }
 .nav a:hover { color: var(--text); }
 .nav a[aria-current="page"] { border-bottom-color: var(--accent); color: var(--text); }

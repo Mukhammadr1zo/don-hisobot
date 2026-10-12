@@ -83,7 +83,7 @@ class PeriodsTests(SimpleTestCase):
 
     def test_naive_datetime_is_rejected(self):
         with self.assertRaises(ValueError):
-            periods.local(datetime(2026, 10, 12, 8))
+            periods.local(datetime(2026, 10, 12, 8))  # noqa: DTZ001 - naive on purpose
 
     def test_label_and_slug_reject_non_boundaries(self):
         for fn in (periods.label, periods.to_slug):

@@ -44,9 +44,14 @@ Ko'p xato kiritilgani uchun bloklangan stansiya: «Блокдан чиқариш
 
 ## Serverga joylashtirish
 
-Kerak: Linux server, Docker va Compose plagini, domen (A yozuvi server IP siga), ochiq 80 va 443 portlar.
+Kerak: Linux server (masalan Ubuntu 24.04, 2 GB RAM), Docker Engine va Compose plagini
+(https://docs.docker.com/engine/install/), domen (A yozuvi server IP siga), ochiq 80 va 443 portlar.
 Faqat Caddy port ochadi; HTTPS sertifikatini o'zi oladi va yangilaydi.
 Quyidagi buyruqlar root sifatida bajariladi (`sudo -i`).
+
+Server soati to'g'ri bo'lishi shart: davrlar 08:00 va 20:00 da ochiladi va stansiya oynasi 24 soat.
+`timedatectl` da `System clock synchronized: yes` bo'lsin (yo'q bo'lsa: `timedatectl set-ntp true`).
+Firewall ishlatilsa, faqat 22, 80 va 443 ochiq bo'lsin (`ufw allow OpenSSH; ufw allow 80,443/tcp; ufw enable`).
 
 ```sh
 git clone <repo> /opt/don-hisobot && cd /opt/don-hisobot
@@ -59,7 +64,15 @@ curl https://<domen>/healthz             # {"ok": true, "time": "..."}
 `SECRET_KEY` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
 
 Yangilash: `git pull && docker compose up -d --build --wait`.
-Loglar: `docker compose logs -f web`.
+Loglar: `docker compose logs -f web` (xatolar traceback bilan shu yerda).
+
+Ishga tushgandan keyin tekshiring:
+- `docker compose ps`: uchala xizmat `healthy`.
+- Telefondan noto'g'ri PIN kiriting, so'ng
+  `docker compose exec db psql -U hisobot -tAc "select ip from hisobot_loginfailure order by at desc limit 1"`
+  telefonning haqiqiy IP sini ko'rsatsin. Har doim `172.x.x.1` chiqsa, mijozlar IPv6 orqali Docker proksisidan
+  kelyapti va hamma bitta IP bo'lib ko'rinadi (bitta odamning xatolari hammani cheklaydi): serverda IPv6 ni
+  Docker uchun yoqing yoki domenga faqat A (IPv4) yozuvini qoldiring.
 
 ## Zaxira
 

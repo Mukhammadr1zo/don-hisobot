@@ -319,6 +319,17 @@ class StationLoginTests(AccessTestCase):
         with at(now + timedelta(hours=1)):
             self.assertEqual(self.pin_login(self.station, PIN, ip="10.0.0.1"), Login.OK)
 
+    def test_a_locked_station_says_locked_even_from_a_throttled_ip(self):
+        # The lock is the station's own state and the cheaper check: it is reported first.
+        locked = Station.objects.create(
+            mtu=self.mtu_a, name="Блокли", pin_hash=make_password(PIN), locked_until=timezone.now() + timedelta(hours=1)
+        )
+        others = [Station.objects.create(mtu=self.mtu_a, name=f"Бошқа {i}", pin_hash=make_password(PIN)) for i in range(6)]
+        for attempt in range(30):  # 5 each, in turn: every one is a failure, none hits a lock first
+            self.assertEqual(self.pin_login(others[attempt % 6], WRONG, ip="10.0.0.1"), Login.BAD)
+        self.assertEqual(self.pin_login(locked, PIN, ip="10.0.0.1"), Login.LOCKED)
+        self.assertEqual(self.pin_login(self.station, PIN, ip="10.0.0.1"), Login.THROTTLED)
+
     def test_failures_are_counted_per_ipv6_64(self):
         self.pin_login(self.station, WRONG, ip="2001:db8:1:2:aaaa::1")
         self.pin_login(self.station, WRONG, ip="2001:db8:1:2:bbbb::2")

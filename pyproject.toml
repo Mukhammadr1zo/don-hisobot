@@ -11,3 +11,11 @@ dependencies = [
     "gunicorn",
     "whitenoise",
 ]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["hisobot/migrations"]
+
+[tool.ruff.lint.per-file-ignores]
+# Django's Meta.constraints / Change.KINDS are class-level lists by design.
+"hisobot/models.py" = ["RUF012"]

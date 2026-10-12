@@ -9,7 +9,7 @@ umask 077
 cd "$(dirname "$0")"
 BACKUP_DIR="${BACKUP_DIR:-backups}"
 KEEP_DAYS="${KEEP_DAYS:-30}"
-# An empty schema dumps to about 90 KB; anything smaller is not a real backup.
+# An empty database dumps to about 45 KB (PostgreSQL 17); anything smaller is not a real backup.
 MIN_BYTES="${MIN_BYTES:-20000}"
 
 mkdir -p "$BACKUP_DIR"

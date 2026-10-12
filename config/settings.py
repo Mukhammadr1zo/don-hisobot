@@ -107,6 +107,10 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# check --deploy: Caddy redirects HTTP to HTTPS (W008). The domain will likely be a subdomain of the railway's own,
+# so HSTS must not cover its siblings or ask for preload (W005, W021).
+SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W008", "security.W021"]
+
 # Gunicorn configures no root logger and Django's own console handler works only with DEBUG on:
 # without this a 500 in production leaves no traceback in `docker compose logs web`.
 # On the root logger: configuring "django" itself would reset its children, runserver's request log among them.

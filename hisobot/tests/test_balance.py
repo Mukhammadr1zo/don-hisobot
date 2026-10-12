@@ -118,6 +118,12 @@ class SaveEntryTests(TestCase):
         self.mk(self.station, P3, 10, 1)
         self.assertEqual(stored_calcs(self.station), [8, 10, 1])
 
+    def test_gap_without_any_earlier_entry(self):
+        # Nothing entered yet: the first period after the opening has no gap, the one after it has.
+        self.assertEqual(prev_for(self.station, P2), (10, True))
+        self.mk(self.station, P1, 5, 3)
+        self.assertEqual(prev_for(self.station, P2), (8, False))
+
     def test_skipped_period_then_filled(self):
         self.mk(self.station, P1, 5, 3)
         third = self.mk(self.station, P3, 1, 0).entry
@@ -223,8 +229,8 @@ class SaveEntryTests(TestCase):
 
     def test_now_defaults_to_the_clock(self):
         latest = periods.last_ended(timezone.now())
-        form = dict(station_id=self.fresh.pk, unloaded=5, arrived=3, opening=10,
-                    form_version=0, form_prev=None, actor=None, ip=IP)
+        form = {"station_id": self.fresh.pk, "unloaded": 5, "arrived": 3, "opening": 10,
+                "form_version": 0, "form_prev": None, "actor": None, "ip": IP}
         with self.refuses("window"):
             save_entry(period_end=latest - 3 * DAY, **form)
         self.assertTrue(save_entry(period_end=latest, **form).changed)
@@ -317,7 +323,8 @@ class ConcurrencyTests(TransactionTestCase):
                 thread.start()
             threads[0].join(timeout=0.5)
         for thread in threads:
-            thread.join()
+            thread.join(timeout=30)
+            self.assertFalse(thread.is_alive(), "a save is stuck on the station lock")
 
         self.assertEqual(sorted(outcomes), ["saved", "stale"])
         entry = Entry.objects.get()
