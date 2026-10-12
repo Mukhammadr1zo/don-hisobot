@@ -1,8 +1,9 @@
 """Task 10: an MTU account never sees, reaches or changes another MTU's stations (spec section 8).
 
 REGISTRY lists every URL under /xodim/; a staff URL missing from it fails the first test.
-MTU B's objects carry numbers that appear nowhere else, so any trace of them in a response is a leak:
-station «Бета-бекат» (id 987654), MTU «Бетаобод» (id 424242), a hand-typed remaining of 7777.
+MTU B's objects carry values that appear nowhere else, so any trace of them in a response is a leak:
+station «Бета-бекат» (id 987654), MTU «Бетаобод» (id 424242), an opening of 6161, a hand-typed remaining of 7777.
+B's numbers summed into A's totals leave no such trace; test_own_numbers_do_not_move_with_the_other_mtus covers those.
 """
 
 import re
@@ -10,6 +11,7 @@ from datetime import timedelta
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.models import F
 from django.test import TestCase, override_settings
 from django.urls import URLPattern, reverse
 from django.utils import timezone
@@ -19,7 +21,7 @@ from hisobot import access, balance, periods, urls
 from hisobot.models import Change, Entry, Mtu, Station, User
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-LEAKS = ["Бета-бекат", "Бетаобод", "987654", "424242", "7777"]
+LEAKS = ["Бета-бекат", "Бетаобод", "987654", "424242", "6161", "7777"]
 PIN = re.compile(r"\d{4} \d{4}")  # a printed PIN is random digits: it may contain a leak marker by chance
 
 
@@ -62,8 +64,9 @@ REGISTRY = {
         ("post", s.url("station_edit"), {"form": "station", "name": s.station.name, "sort": 5}),
         ("post", s.url("station_edit"), {"form": "opening", "opening": 9}),
     ],
-    # Twice: off, then on again, so the station is active for the calls after it.
-    "station_toggle": lambda s: [("post", s.url("station_toggle"), {})] * 2,
+    # Off, then on again, so the station is active for the calls after it.
+    "station_toggle": lambda s: [("post", s.url("station_toggle"), {"active": "0"}),
+                                 ("post", s.url("station_toggle"), {"active": "1"})],
     "station_pin": lambda s: [("post", s.url("station_pin"), {})],
     "station_unlock": lambda s: [("post", s.url("station_unlock"), {})],
     "stations_import": lambda s: [
@@ -129,9 +132,9 @@ class IsolationTests(TestCase):
         # of the first one that cascades into the second (a history row with a cause), a PIN and a lock.
         for station, (opening, unloaded, arrived, override) in [
             (cls.station_a, (10, 1, 2, 5)),
-            (cls.station_b, (5000, 311, 313, 7777)),
+            (cls.station_b, (6161, 311, 313, 7777)),
         ]:
-            write = dict(station_id=station.pk, arrived=arrived, actor=boss, ip="10.0.0.1", now=now)
+            write = {"station_id": station.pk, "arrived": arrived, "actor": boss, "ip": "10.0.0.1", "now": now}
             balance.save_entry(**write, period_end=earlier, unloaded=unloaded, opening=opening,
                                form_version=0, form_prev=None)
             station.refresh_from_db()
@@ -197,6 +200,27 @@ class IsolationTests(TestCase):
         # The add form and the import name MTU B; an MTU account adds to its own MTU or nothing.
         self.assertTrue(Station.objects.filter(mtu=self.mtu_a, name="Янги-бекат").exists())
         self.assertFalse(Station.objects.filter(name="Импорт-бекат").exists())
+
+    def test_own_numbers_do_not_move_with_the_other_mtus(self):
+        """Shift every number of B: A's totals, chart series and counts must stay exactly the same."""
+        self.login(self.user_a)
+
+        def numbers():
+            report = self.call("get", reverse("staff_report"), {"from": self.a.week_ago, "to": self.a.day})
+            daily = self.call("get", reverse("staff_daily"), {"d": self.a.day})
+            now = self.call("get", reverse("staff_now"), {"pe": self.a.pe})
+            sub = now.context["sub"]
+            return (
+                report.context["chart"], report.context["total"], [t for _, _, t in daily.context["groups"]],
+                (sub.submitted, sub.expected), [e.pk for e in now.context["attention"]],
+            )
+
+        before = numbers()
+        Entry.objects.filter(station__mtu=self.mtu_b).update(
+            unloaded=F("unloaded") + 1, arrived=F("arrived") + 1, remaining_calc=F("remaining_calc") + 1
+        )
+        Station.objects.create(mtu=self.mtu_b, name="Гамма", active_from=timezone.now() - timedelta(days=20))
+        self.assertEqual(numbers(), before)
 
     def test_anonymous_and_station_sessions_are_sent_to_staff_login(self):
         station_session = {"station_id": self.station_a.pk, "pin_version": self.station_a.pin_version}

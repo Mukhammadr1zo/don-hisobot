@@ -139,4 +139,14 @@
 
   draw();
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  // A canvas keeps the pixels it was drawn with: redraw with the light (paper) tokens for printing.
+  const root = document.documentElement;
+  window.addEventListener("beforeprint", () => {
+    root.classList.add("printing");
+    draw();
+  });
+  window.addEventListener("afterprint", () => {
+    root.classList.remove("printing");
+    draw();
+  });
 })();

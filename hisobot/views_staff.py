@@ -39,7 +39,7 @@ def _period(slug, latest):
         pe = periods.from_slug(slug)
     except ValueError:
         return latest
-    return pe if pe <= latest else latest
+    return min(pe, latest)
 
 
 def _report_date(value, latest):
@@ -150,6 +150,11 @@ def entry(request, station_id, pe):
     if not periods.staff_can_write(pe, moment):
         messages.info(request, f"{periods.local(pe):%d.%m.%Y %H:%M} да очилади")
         return redirect("staff_now")
+    back_url = reverse("staff_daily") + _query(request, station.mtu, d=periods.label(pe)[0].isoformat())
+    if station.opening_at is not None and periods.bounds(pe)[0] < station.opening_at:
+        # save_entry refuses it too (before_opening); as on the station's side, no form that can never be saved.
+        messages.warning(request, balance.MESSAGES["before_opening"])
+        return redirect(back_url)
 
     form = error = None
     if request.method == "POST":
@@ -200,7 +205,7 @@ def entry(request, station_id, pe):
         "prev": prev,
         "gap": gap,
         "needs_opening": form.fields["opening"].required,
-        "back_url": reverse("staff_daily") + "?" + urlencode({"d": periods.label(pe)[0].isoformat()}),
+        "back_url": back_url,
         "history": _history(current),
     }
     return render(request, "hisobot/staff/entry.html", context)

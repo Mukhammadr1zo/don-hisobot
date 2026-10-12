@@ -107,6 +107,15 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Gunicorn configures no root logger and Django's own console handler works only with DEBUG on:
+# without this a 500 in production leaves no traceback in `docker compose logs web`.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"stderr": {"class": "logging.StreamHandler"}},
+    "loggers": {"django": {"handlers": ["stderr"], "level": "ERROR"}},
+}
+
 PIN_LOCK_EVERY = 5
 PIN_LOCK_STEPS = [timedelta(minutes=15), timedelta(hours=1), timedelta(hours=4), timedelta(hours=24)]
 PIN_IP_FAILS_PER_HOUR = 30

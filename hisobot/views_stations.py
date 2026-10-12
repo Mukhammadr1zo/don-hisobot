@@ -135,19 +135,33 @@ def _add(request, form):
     return True
 
 
+def _filter(request, mtu):
+    """`?mtu=` for the boshqarma's filtered view, so links and the PIN form stay on the chosen MTU."""
+    return f"?mtu={mtu.pk}" if mtu is not None and request.user.is_boshqarma else ""
+
+
 @access.staff_required
 def index(request):
-    form = AddForm(request.POST if request.method == "POST" else None, user=request.user)
+    stations, mtu = access.scope(request)
+    data = request.POST if request.method == "POST" else None
+    form = AddForm(data, user=request.user, initial={"mtu": mtu})
     if request.method == "POST" and form.is_valid() and _add(request, form):
-        return redirect("stations")
+        return redirect(reverse("stations") + _filter(request, mtu))
 
     now = timezone.now()
-    by_mtu = {mtu: [] for mtu in access.mtus_for(request.user)}
-    for station in access.stations_for(request.user):
+    by_mtu = {item: [] for item in ([mtu] if mtu else access.mtus_for(request.user))}
+    for station in stations:
         station.pin_state = _pin_state(station)
         station.locked = station.locked_until is not None and station.locked_until > now
         by_mtu[station.mtu].append(station)
-    return render(request, "hisobot/staff/stations.html", {"form": form, "groups": by_mtu.items()})
+    context = {
+        "form": form,
+        "groups": by_mtu.items(),
+        "mtu": mtu,
+        "mtus": access.mtus_for(request.user) if request.user.is_boshqarma else None,
+        "pin_url": reverse("pin_sheet") + _filter(request, mtu),
+    }
+    return render(request, "hisobot/staff/stations.html", context)
 
 
 def _describe(change):
@@ -230,19 +244,28 @@ def edit(request, station_id):
 @access.staff_required
 @require_POST
 def toggle(request, station_id):
-    station = _station(request, station_id)
-    now = timezone.now()
-    if station.is_active:
-        old, new = {"active_to": None}, {"active_to": now.isoformat()}
-        station.active_to = now
-        text = "Станция ўчирилди. Унга кириш ёпилди."
-    else:
-        old = {"active_from": station.active_from.isoformat(), "active_to": station.active_to.isoformat()}
-        new = {"active_from": now.isoformat(), "active_to": None}
-        station.active_from, station.active_to = now, None
-        text = "Станция қайта ёқилди."
+    """The form says which state it wants (active=0 or 1): a double click or a stale page must not flip it back."""
     with transaction.atomic():
-        station.save(update_fields=["active_from", "active_to"])
+        station = get_object_or_404(access.stations_for(request.user).select_for_update(of=("self",)), pk=station_id)
+        want = request.POST.get("active")
+        if want not in ("0", "1"):
+            raise Http404
+        if station.is_active == (want == "1"):
+            messages.info(request, "Станция аллақачон фаол." if station.is_active else "Станция аллақачон ўчирилган.")
+            return redirect("station_edit", station_id=station.pk)
+        now = timezone.now()
+        if station.is_active:
+            old, new = {"active_to": None}, {"active_to": now.isoformat()}
+            station.active_to = now
+            fields = ["active_to"]
+            text = "Станция ўчирилди. Унга кириш ёпилди."
+        else:
+            old = {"active_from": station.active_from.isoformat(), "active_to": station.active_to.isoformat()}
+            new = {"active_from": now.isoformat(), "active_to": None}
+            station.active_from, station.active_to = now, None
+            fields = ["active_from", "active_to"]
+            text = "Станция қайта ёқилди."
+        station.save(update_fields=fields)
         Change.objects.create(
             kind="station", station=station, user=request.user, ip=access.client_ip(request), old=old, new=new
         )
@@ -289,8 +312,11 @@ def unlock(request, station_id):
 @require_POST
 @never_cache
 def pin_sheet(request):
-    """«ПИН яратиш»: new PINs for the active stations whose PIN was never used; the checked ones only, if any."""
-    stations = access.stations_for(request.user)
+    """«ПИН яратиш»: new PINs for the active stations whose PIN was never used; the checked ones only, if any.
+
+    The boshqarma's `?mtu=` limits it to that MTU: another MTU's printed but unused sheet must keep working.
+    """
+    stations, mtu = access.scope(request)
     chosen = _ids(request.POST.getlist("station"))
     if chosen:
         if stations.filter(pk__in=chosen).count() != len(chosen):
@@ -301,7 +327,7 @@ def pin_sheet(request):
         messages.warning(
             request, "ПИН берилмаган ёки ишлатилмаган фаол станция йўқ. Ишлатилган ПИН станция саҳифасида янгиланади."
         )
-        return redirect("stations")
+        return redirect(reverse("stations") + _filter(request, mtu))
     return _sheet(request, issued)
 
 

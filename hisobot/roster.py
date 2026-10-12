@@ -1,5 +1,6 @@
 """Station roster import from .xlsx (spec section 7, «Импорт»): all rows or none, errors by row number."""
 
+import zipfile
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
@@ -9,7 +10,9 @@ from openpyxl import load_workbook
 from .models import Mtu, Station, validate_station_name
 
 MAX_BYTES = 1024 * 1024
+MAX_UNZIPPED = 20 * 1024 * 1024  # a real roster of 1000 rows unpacks to well under 1 MB
 MAX_ROWS = 1000
+EXCEL_ROWS = 1_048_576  # Excel's own last row: a file cannot claim rows beyond it
 HEADER = ["мту", "станция номи"]
 
 
@@ -20,7 +23,8 @@ class RosterError(Exception):
 
 
 def _text(value):
-    return "" if value is None else str(value).strip()
+    # Any run of whitespace, a no-break space or a line break typed inside a cell included, becomes one space.
+    return "" if value is None else " ".join(str(value).split())
 
 
 def _read(file):
@@ -29,10 +33,16 @@ def _read(file):
     if len(data) > MAX_BYTES:
         raise RosterError(["Файл ҳажми 1 МБ дан ошмаслиги керак."])
     try:
+        # The upload limit counts compressed bytes; a few hundred KB can unpack to gigabytes.
+        with zipfile.ZipFile(BytesIO(data)) as archive:
+            if sum(info.file_size for info in archive.infolist()) > MAX_UNZIPPED:
+                raise ValueError("unpacks too large")
         workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
         try:
-            # ponytail: a crafted file can still hold a long run of blank rows; staff are the only uploaders.
-            cells = workbook.worksheets[0].iter_rows(max_col=2, values_only=True)
+            sheet = workbook.worksheets[0]
+            sheet.reset_dimensions()  # read-only mode trusts the file's <dimension>, which some exporters write stale
+            # max_row: a forged row number would otherwise make openpyxl yield every blank row up to it.
+            cells = sheet.iter_rows(max_col=2, max_row=EXCEL_ROWS, values_only=True)
             header = [_text(value).lower() for value in next(cells, ())]
             rows = []
             for number, row in enumerate(cells, start=2):
@@ -43,7 +53,7 @@ def _read(file):
                         break
         finally:
             workbook.close()
-    except Exception:  # a foreign or broken file fails in zipfile, the XML parser or openpyxl, at any step
+    except Exception:  # noqa: BLE001 - a foreign or broken file fails in zipfile, the XML parser or openpyxl
         raise RosterError(["Файлни ўқиб бўлмади. Excel (.xlsx) файлини юкланг."]) from None
     return header, rows
 

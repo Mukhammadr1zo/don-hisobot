@@ -282,6 +282,15 @@ class ExportTests(DayFixture):
             BytesIO(export.export_daily(self.scope(), DAY, user=self.boss, now=tk(12, 10)))
         ).active
         self.assertEqual(row_values(sheet, 5), [1, "Олмазор", 3, 1, 10, None, None, None, 3])
+        # The totals of the running day period are blank too, as on the page: nobody entered them yet.
+        self.assertEqual(row_values(sheet, 8), [None, "Тошкент МТУ жами", 8, 1, 11, None, None, None, "8*"])
+        self.assertEqual(row_values(sheet, 12), [None, "Жами", 8, 1, 11, None, None, None, "8*"])
+
+    def test_a_control_character_in_a_stored_name_does_not_break_the_file(self):
+        # The forms refuse such a name now; one stored earlier, or through the ORM, must not make every export fail.
+        self.station("Альфа\x0bбекат", self.mtu_a, 4)
+        text = all_text(self.sheet(access.stations_for(self.tashkent), self.tashkent))
+        self.assertIn("Альфабекат", text)
 
 
 class ViewTests(DayFixture):
@@ -316,6 +325,9 @@ class ViewTests(DayFixture):
         text = self.workbook_text(self.get("staff_export", d="2026-09-12", mtu=self.mtu_b.id))
         self.assertIn("Бета", text)
         self.assertNotIn("Олмазор", text)
+        # A day that has not begun is clamped, as the daily page does, not exported as an empty «complete» file.
+        response = self.get("staff_export", d="2099-01-01")
+        self.assertEqual(response["Content-Disposition"], f'attachment; filename="don-{today:%Y-%m-%d}.xlsx"')
 
     def test_report_page_for_boshqarma_compares_mtus(self):
         self.login(self.boss)
@@ -379,3 +391,25 @@ class ViewTests(DayFixture):
         response = self.get("staff_report", **{"from": "2025-09-12", "to": "2026-09-12"})
         self.assertEqual(response.context["d_from"], date(2025, 9, 12))
         self.assertNotContains(response, 'class="notice-warn"')
+
+    def test_a_future_end_is_clamped_to_the_latest_report_date(self):
+        self.login(self.tashkent)
+        last = periods.label(periods.last_ended(timezone.now()))[0]
+        response = self.get("staff_report", **{"from": "2099-12-25", "to": "2099-12-31"})
+        self.assertEqual((response.context["d_from"], response.context["d_to"]), (last, last))
+        self.assertContains(response, 'class="notice-warn"')
+        self.assertContains(response, f'max="{last:%Y-%m-%d}"', count=2)
+        response = self.get("staff_report", to="2099-12-31")
+        self.assertEqual((response.context["d_from"], response.context["d_to"]), (last - timedelta(days=6), last))
+
+    def test_grey_means_expected_and_not_entered(self):
+        later = self.station("Кейин", self.mtu_a, 9, active_from=tk(20, 8))  # expects nothing in the range
+        self.login(self.boss)
+        response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
+        html = response.content.decode()
+        row = html[html.index(f"<th scope=\"row\">{later.name}</th>"):]
+        row = row[: row.index("</tr>")]
+        self.assertNotIn("is-missing", row)
+        self.assertIn("0 / 0", row)
+        row = html[html.index('<th scope="row">Бета</th>'):]
+        self.assertIn("is-missing", row[: row.index("</tr>")])  # expected 6, entered none

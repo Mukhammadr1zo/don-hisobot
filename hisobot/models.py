@@ -8,9 +8,16 @@ from django.utils import timezone
 
 
 def validate_station_name(value):
-    if value != value.strip() or not 1 <= len(value) <= 100 or value[0] in "=+-@":
+    # Control characters (a line break pasted from Word, say) cannot be stored in the Excel export.
+    if (
+        value != value.strip()
+        or not 1 <= len(value) <= 100
+        or value[0] in "=+-@"
+        or any(not ch.isprintable() for ch in value)
+    ):
         raise ValidationError(
-            "Станция номи 1–100 белгидан иборат бўлиши ва = + - @ белгиси билан бошланмаслиги керак."
+            "Станция номи 1–100 белгидан иборат бўлиши, = + - @ белгиси билан бошланмаслиги"
+            " ва махсус белгиларсиз бўлиши керак."
         )
 
 

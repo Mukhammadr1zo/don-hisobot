@@ -46,8 +46,12 @@ def report(request):
     now = timezone.now()
     last = _last_day(now)
     d_to = _date(request.GET.get("to")) or last
-    d_from = _date(request.GET.get("from")) or d_to - timedelta(days=6)
     notice = None
+    if d_to > last:
+        # A day that has not begun has no numbers; its stock column would just repeat today's.
+        d_to = last
+        notice = f"Охирги сана {last:%d.%m.%Y} дан кейин бўлолмайди: оралиқ шу кунгача кўрсатилди."
+    d_from = min(_date(request.GET.get("from")) or d_to - timedelta(days=6), last)
     if d_from > d_to:
         d_from, d_to = d_to, d_from
         notice = "Бошланиш санаси охирги санадан кейин эди: саналар алмаштирилди."
@@ -81,7 +85,6 @@ def report(request):
     }
     days = zip(*(series[key] for key in ("labels", "unloaded", "arrived", "remaining", "missing")), strict=True)
     total = summary.total(station_rows)
-    export_date = min(d_to, last)
     context = {
         "mtu": mtu,
         "mtus": access.mtus_for(request.user) if request.user.is_boshqarma else [],
@@ -97,8 +100,8 @@ def report(request):
         "by": by,
         "chart": chart,
         "days": list(days),
-        "export_date": export_date,
-        "export_url": reverse("staff_export") + _query(request, mtu, d=export_date.isoformat()),
+        "last": last,
+        "export_url": reverse("staff_export") + _query(request, mtu, d=d_to.isoformat()),
     }
     return render(request, "hisobot/staff/report.html", context)
 
@@ -107,7 +110,8 @@ def report(request):
 def export(request):
     stations, _ = access.scope(request)
     now = timezone.now()
-    report_date = _date(request.GET.get("d")) or _last_day(now)
+    last = _last_day(now)
+    report_date = min(_date(request.GET.get("d")) or last, last)  # as the daily page: no day that has not begun
     data = export_daily(stations, report_date, user=request.user, now=now)
     response = HttpResponse(data, content_type=CONTENT_TYPE)
     response["Content-Disposition"] = f'attachment; filename="don-{report_date:%Y-%m-%d}.xlsx"'

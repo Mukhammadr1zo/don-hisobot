@@ -4,16 +4,29 @@
 
 {% block content %}
 <div class="toolbar">
-  <h1>Станциялар</h1>
+  <h1>Станциялар{% if mtu and mtus %} · {{ mtu.name }} МТУ{% endif %}</h1>
   <span class="spacer"></span>
   <div class="actions">
     <a class="btn" href="{% url 'stations_import' %}">Импорт</a>
     <button class="btn btn-primary" form="pin-form">ПИН яратиш</button>
   </div>
 </div>
+{% if mtus %}
+<form method="get" class="toolbar no-print">
+  <div class="field">
+    <label for="s-mtu">МТУ</label>
+    <select id="s-mtu" name="mtu">
+      <option value="">Ҳаммаси</option>
+      {% for item in mtus %}<option value="{{ item.pk }}"{% if mtu and item.pk == mtu.pk %} selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn">Кўрсатиш</button>
+</form>
+{% endif %}
 {# The checkboxes in the table belong to this form through their form="pin-form" attribute: forms cannot nest. #}
-<form id="pin-form" method="post" action="{% url 'pin_sheet' %}">{% csrf_token %}</form>
-<p class="muted">«ПИН яратиш» белгиланган станцияларга, ҳеч бири белгиланмаса ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларга янги ПИН беради. Ишлатилган ПИН станция саҳифасида янгиланади.</p>
+<form id="pin-form" method="post" action="{{ pin_url }}">{% csrf_token %}</form>
+<p class="muted">«ПИН яратиш» белгиланган станцияларга, ҳеч бири белгиланмаса {% if mtu and mtus %}шу МТУнинг ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларига{% else %}ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларга{% endif %} янги ПИН беради. Ишлатилган ПИН станция саҳифасида янгиланади.</p>
 
 <details{% if form.errors %} open{% endif %}>
   <summary>Станция қўшиш</summary>

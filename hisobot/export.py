@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.comments import Comment
 from openpyxl.styles import PatternFill
 
@@ -30,8 +31,9 @@ def _total(value, partial):
 
 
 class _Sheet:
-    def __init__(self, sheet):
+    def __init__(self, sheet, ended):
         self.sheet = sheet
+        self.ended = ended  # (night, day): has the period ended? A running one has blank totals, as on the page.
         header = [sheet.cell(3, c) if sheet.cell(3, c).value is not None else sheet.cell(2, c) for c in range(1, 10)]
         # The template's header rows give the alignment; its prepared (empty) data rows give the border and font.
         sample = [sheet.cell(FIRST_ROW + 1, c) for c in range(1, 10)]
@@ -43,6 +45,9 @@ class _Sheet:
 
     def put(self, col, value, *, bold=False, colour=None, text=False):
         cell = self.sheet.cell(self.row, col)
+        if text:
+            # Control characters cannot be stored in xlsx; a name saved with one must not break the whole file.
+            value = ILLEGAL_CHARACTERS_RE.sub("", value)
         cell.value = value
         if text:
             cell.data_type = "s"  # a name like "=1+1" would otherwise be written as a formula
@@ -92,7 +97,9 @@ class _Sheet:
             totals.d_remaining,
         )
         for col, value in enumerate(numbers, start=3):
-            self.put(col, value, bold=True, colour=RED if value < 0 else None)
+            if not self.ended[(col - 3) // 3]:
+                value = None
+            self.put(col, value, bold=True, colour=RED if value is not None and value < 0 else None)
         self.put(9, _total(totals.total_unloaded, totals.partial), bold=True)
         self.row += 1
 
@@ -111,7 +118,7 @@ def export_daily(stations, report_date, *, user, now) -> bytes:
     book = load_workbook(TEMPLATE)
     sheet = book.active
     sheet["A1"] = f"{sheet['A1'].value} {report_date:%d.%m.%Y}"
-    out = _Sheet(sheet)
+    out = _Sheet(sheet, [pe <= now for pe in periods.ends_for(report_date)])
     if len(groups) > 1:
         for mtu, group, group_totals in groups:
             out.title(f"{mtu.name} МТУ")

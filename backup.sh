@@ -3,6 +3,8 @@
 # Writes backups/hisobot-YYYY-MM-DD_HHMM.dump, checks it, deletes dumps older than KEEP_DAYS.
 # Any failure exits non-zero and leaves no half-written dump behind.
 set -euo pipefail
+# A dump holds the PIN and password hashes: owner-only.
+umask 077
 
 cd "$(dirname "$0")"
 BACKUP_DIR="${BACKUP_DIR:-backups}"

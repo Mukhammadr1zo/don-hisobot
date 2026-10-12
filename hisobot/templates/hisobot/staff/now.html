@@ -29,10 +29,12 @@ One MTU in scope: who has not submitted (first, with «Киритиш»), then w
   <div class="stat"><span class="stat-num">{{ sub.submitted }}<small> / {{ sub.expected }}</small></span><span class="stat-cap">топширди</span></div>
   {% if sub.expected %}<progress value="{{ sub.submitted }}" max="{{ sub.expected }}"></progress>{% endif %}
 </div>
+{# Each row keeps only narrow items beside the name: on a 360px phone a wide badge squeezes the name to one letter a line. #}
 {% if sub.missing %}
+<h2>Топширилмаган <span class="badge-warn">{{ sub.missing|length }}</span></h2>
 <ul class="list">
   {% for station in sub.missing %}
-  <li><div><span>{{ station.name }}</span><span class="badge-warn">Топширилмаган</span><a class="btn btn-sm btn-primary" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></div></li>
+  <li><div><span>{{ station.name }}</span><a class="btn btn-sm btn-primary" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></div></li>
   {% endfor %}
 </ul>
 {% elif sub.done %}
@@ -41,10 +43,11 @@ One MTU in scope: who has not submitted (first, with «Киритиш»), then w
 <p class="empty">Бу давр учун кутилган станция йўқ</p>
 {% endif %}
 {% if sub.done %}
+<h2>Қабул қилинди <span class="badge-ok">{{ sub.done|length }}</span></h2>
 <p class="muted small">Туширилган · Кириб келган · Қолган</p>
 <ul class="list">
   {% for e in sub.done %}
-  <li><a href="{% url 'staff_entry' e.station.pk pe|slug %}"><span>{{ e.station.name }}</span><span class="muted nowrap">{{ e.unloaded }} · {{ e.arrived }} · <span{% if e.remaining < 0 %} class="is-negative"{% endif %}>{{ e.remaining }}</span></span><span class="badge-ok">Қабул қилинди {{ e.updated_at|t }}</span></a></li>
+  <li><a href="{% url 'staff_entry' e.station.pk pe|slug %}"><span>{{ e.station.name }}<br><small class="muted">{{ e.unloaded }} · {{ e.arrived }} · <span{% if e.remaining < 0 %} class="is-negative"{% endif %}>{{ e.remaining }}</span></small></span><span class="badge-ok">{{ e.updated_at|t }}</span></a></li>
   {% endfor %}
 </ul>
 {% endif %}
@@ -55,7 +58,7 @@ One MTU in scope: who has not submitted (first, with «Киритиш»), then w
 {% if attention %}
 <ul class="list">
   {% for e in attention %}
-  <li><div><span>{{ e.station.name }} <small class="muted">· {% if not mtu %}{{ e.station.mtu.name }} МТУ · {% endif %}{{ e.period_end|d }} {{ e.period_end|period_name|lower }}</small></span>{% if e.remaining < 0 %}<span class="is-negative nowrap">{{ e.remaining }}</span>{% else %}<span class="nowrap">{{ e.remaining }} <small class="muted">ҳисобланган: {{ e.remaining_calc }}</small></span>{% endif %}<a class="btn btn-sm" href="{% url 'staff_entry' e.station.pk e.period_end|slug %}">Тузатиш</a></div></li>
+  <li><div><span>{{ e.station.name }}<br><small class="muted">{% if not mtu %}{{ e.station.mtu.name }} МТУ · {% endif %}{{ e.period_end|d }} {{ e.period_end|period_name|lower }}{% if e.overridden %} · ҳисобланган: {{ e.remaining_calc }}{% endif %}</small></span><span class="nowrap{% if e.remaining < 0 %} is-negative{% endif %}">{{ e.remaining }}</span><a class="btn btn-sm" href="{% url 'staff_entry' e.station.pk e.period_end|slug %}">Тузатиш</a></div></li>
   {% endfor %}
 </ul>
 {% else %}

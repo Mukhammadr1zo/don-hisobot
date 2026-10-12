@@ -15,7 +15,7 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
   <span class="spacer"></span>
   <div>
     <a class="btn" href="{{ export_url }}">Excel юклаб олиш</a>
-    <p class="muted small">{{ export_date|d }} кунлик жадвали</p>
+    <p class="muted small">{{ d_to|d }} кунлик жадвали</p>
   </div>
 </div>
 
@@ -26,11 +26,11 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
   </div>
   <div class="field">
     <label for="r-from">Бошланиш санаси</label>
-    <input type="date" id="r-from" name="from" value="{{ d_from|date:'Y-m-d' }}">
+    <input type="date" id="r-from" name="from" value="{{ d_from|date:'Y-m-d' }}" max="{{ last|date:'Y-m-d' }}">
   </div>
   <div class="field">
     <label for="r-to">Охирги сана</label>
-    <input type="date" id="r-to" name="to" value="{{ d_to|date:'Y-m-d' }}">
+    <input type="date" id="r-to" name="to" value="{{ d_to|date:'Y-m-d' }}" max="{{ last|date:'Y-m-d' }}">
   </div>
   {% if mtus %}
   <div class="field">
@@ -74,9 +74,9 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
             {% for label, unloaded, arrived, remaining, day_missing in days %}
             <tr>
               <th scope="row">{{ label }}</th>
-              <td class="num{% if unloaded is None %} is-missing{% endif %}">{{ unloaded|num }}</td>
-              <td class="num{% if arrived is None %} is-missing{% endif %}">{{ arrived|num }}</td>
-              <td class="num{% if remaining is None %} is-missing{% elif remaining < 0 %} is-negative{% endif %}">{{ remaining|num }}</td>
+              <td class="num{% if unloaded is None and day_missing %} is-missing{% endif %}">{{ unloaded|num }}</td>
+              <td class="num{% if arrived is None and day_missing %} is-missing{% endif %}">{{ arrived|num }}</td>
+              <td class="num{% if remaining is None and day_missing %} is-missing{% elif remaining < 0 %} is-negative{% endif %}">{{ remaining|num }}</td>
               <td class="num">{{ day_missing|num }}</td>
             </tr>
             {% endfor %}
@@ -113,9 +113,9 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
       {% for row in mtu_rows %}
       <tr>
         <th scope="row">{{ row.mtu.name }}</th>
-        <td class="num{% if row.unloaded is None %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
-        <td class="num{% if row.arrived is None %} is-missing{% endif %}">{{ row.arrived|num }}</td>
-        <td class="num{% if row.remaining_end is None %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
+        <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
+        <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|num }}</td>
+        <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
         <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
         <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
       </tr>
@@ -124,9 +124,9 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
     <tfoot>
       <tr class="total">
         <th scope="row">Жами</th>
-        <td class="num{% if total.unloaded is None %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
-        <td class="num{% if total.arrived is None %} is-missing{% endif %}">{{ total.arrived|num }}</td>
-        <td class="num{% if total.remaining_end is None %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
+        <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
+        <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|num }}</td>
+        <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
         <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
         <td class="num">{{ total.overrides }}</td>
       </tr>
@@ -153,9 +153,9 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
       {% if grouped %}{% ifchanged row.mtu.id %}<tr class="group"><th colspan="6"><span>{{ row.mtu.name }} МТУ</span></th></tr>{% endifchanged %}{% endif %}
       <tr>
         <th scope="row">{{ row.station.name }}</th>
-        <td class="num{% if row.unloaded is None %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
-        <td class="num{% if row.arrived is None %} is-missing{% endif %}">{{ row.arrived|num }}</td>
-        <td class="num{% if row.remaining_end is None %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
+        <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
+        <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|num }}</td>
+        <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
         <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
         <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
       </tr>
@@ -167,9 +167,9 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
     <tfoot>
       <tr class="total">
         <th scope="row">Жами</th>
-        <td class="num{% if total.unloaded is None %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
-        <td class="num{% if total.arrived is None %} is-missing{% endif %}">{{ total.arrived|num }}</td>
-        <td class="num{% if total.remaining_end is None %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
+        <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
+        <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|num }}</td>
+        <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
         <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
         <td class="num">{{ total.overrides }}</td>
       </tr>

@@ -46,18 +46,19 @@ Ko'p xato kiritilgani uchun bloklangan stansiya: «Блокдан чиқариш
 
 Kerak: Linux server, Docker va Compose plagini, domen (A yozuvi server IP siga), ochiq 80 va 443 portlar.
 Faqat Caddy port ochadi; HTTPS sertifikatini o'zi oladi va yangilaydi.
+Quyidagi buyruqlar root sifatida bajariladi (`sudo -i`).
 
 ```sh
 git clone <repo> /opt/don-hisobot && cd /opt/don-hisobot
-cp .env.example .env            # DOMAIN, SECRET_KEY, DB_PASSWORD ni to'ldiring
-docker compose up -d --build    # migratsiyalar web ishga tushganda bajariladi
+cp .env.example .env && chmod 600 .env   # DOMAIN, SECRET_KEY, DB_PASSWORD ni to'ldiring
+docker compose up -d --build --wait      # migratsiyalar tugab, web /healthz ga javob berguncha kutadi
 docker compose exec web python manage.py seed
-curl https://<domen>/healthz    # {"ok": true, "time": "..."}
+curl https://<domen>/healthz             # {"ok": true, "time": "..."}
 ```
 
 `SECRET_KEY` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
 
-Yangilash: `git pull && docker compose up -d --build`.
+Yangilash: `git pull && docker compose up -d --build --wait`.
 Loglar: `docker compose logs -f web`.
 
 ## Zaxira
@@ -65,15 +66,21 @@ Loglar: `docker compose logs -f web`.
 `backup.sh` bazani `backups/hisobot-YYYY-MM-DD_HHMM.dump` ga yozadi, `pg_restore --list` bilan tekshiradi,
 30 kundan eskilarini o'chiradi. Xato bo'lsa nol bo'lmagan kod bilan chiqadi.
 
-Server vaqt zonasini Toshkentga qo'ying va cron ga kuniga ikki marta qo'shing (`crontab -e`):
+Server vaqt zonasini Toshkentga qo'ying (cron yangi zonani qayta ishga tushgandan keyin oladi):
 
 ```sh
-sudo timedatectl set-timezone Asia/Tashkent
+timedatectl set-timezone Asia/Tashkent
+systemctl restart cron
 ```
+
+root ning cron jadvaliga (`crontab -e`, root sifatida) kuniga ikki marta qo'shing:
 
 ```
 0 10,22 * * * /opt/don-hisobot/backup.sh >> /var/log/hisobot-backup.log 2>&1
 ```
+
+Bir marta qo'lda ishga tushirib tekshiring: `/opt/don-hisobot/backup.sh` yangi `.dump` fayl nomini chiqarishi kerak.
+Zaxira fayllari faqat egasiga o'qiladi (ularda PIN va parol xeshlari bor).
 
 `backups/` papkasini muntazam ravishda serverdan tashqariga ko'chiring: server yo'qolsa, zaxira ham yo'qoladi.
 

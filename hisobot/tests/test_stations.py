@@ -35,6 +35,29 @@ def xlsx(*rows, header=HEADER):
     return SimpleUploadedFile("stansiyalar.xlsx", buffer.getvalue(), content_type=XLSX)
 
 
+def dimension(ref):
+    """A with_sheet change that sets the sheet's stored <dimension>, or drops it when ref is None."""
+
+    def change(xml):
+        xml, found = re.subn(r'<dimension ref="[^"]*"\s*/>', "" if ref is None else f'<dimension ref="{ref}"/>', xml)
+        assert found == 1, xml[:300]
+        return xml
+
+    return change
+
+
+def with_sheet(upload, change, extra=None):
+    """The same upload with xl/worksheets/sheet1.xml passed through `change`, plus `extra` {name: bytes} entries."""
+    source, target = zipfile.ZipFile(BytesIO(upload.read())), BytesIO()
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            out.writestr(item, change(data.decode()) if item.filename == "xl/worksheets/sheet1.xml" else data)
+        for name, data in (extra or {}).items():
+            out.writestr(name, data)
+    return SimpleUploadedFile("stansiyalar.xlsx", target.getvalue(), content_type=XLSX)
+
+
 def messages_of(response):
     return [str(message) for message in get_messages(response.wsgi_request)]
 
@@ -174,6 +197,31 @@ class RosterTests(StationsTestCase):
     def test_a_file_over_one_megabyte_is_rejected(self):
         errors = self.assertRejected(SimpleUploadedFile("stansiyalar.xlsx", b"x" * (1024 * 1024 + 1)))
         self.assertIn("1 МБ", errors[0])
+
+    def test_a_small_file_that_unpacks_to_a_huge_one_is_rejected_before_parsing(self):
+        bomb = with_sheet(xlsx(("Тошкент", "Янгийўл")), str, {"xl/media/pad.bin": b"\0" * (roster.MAX_UNZIPPED + 1)})
+        self.assertLess(bomb.size, 1024 * 1024)
+        self.assertRejected(bomb, errors=["Файлни ўқиб бўлмади. Excel (.xlsx) файлини юкланг."])
+
+    def test_a_stale_dimension_does_not_hide_rows(self):
+        # Read-only openpyxl stops at the stored <dimension>; some exporters write a header-only one.
+        upload = with_sheet(xlsx(("Тошкент", "Янгийўл"), ("Навоий", "Кармана")), dimension("A1:B1"))
+        self.assertRejected(upload, errors=["3-қатор: «Навоий» номли МТУ топилмади"])
+
+    def test_a_row_number_beyond_excel_is_not_read(self):
+        # Without the bound openpyxl yields every blank row up to the number the file claims.
+        far = '<row r="1048577"><c r="A1048577" t="inlineStr"><is><t>Тошкент</t></is></c>' \
+              '<c r="B1048577" t="inlineStr"><is><t>Узоқ</t></is></c></row>'
+        upload = with_sheet(
+            xlsx(("Тошкент", "Янгийўл")), lambda xml: dimension(None)(xml).replace("</sheetData>", far + "</sheetData>")
+        )
+        self.assertEqual(roster.import_roster(upload, user=self.boss), 1)
+        self.assertFalse(Station.objects.filter(name="Узоқ").exists())
+
+    def test_whitespace_inside_a_cell_becomes_one_space(self):
+        upload = xlsx(("Тошкент", "Тошкент\xa0 Товар"), ("Тошкент\n", "Янги\tйўл"))
+        self.assertEqual(roster.import_roster(upload, user=self.boss), 2)
+        self.assertEqual(self.names(self.mtu_a), [("Чуқурсой", 1), ("Тошкент Товар", 2), ("Янги йўл", 3)])
 
 
 class ImportViewTests(StationsTestCase):
@@ -325,6 +373,28 @@ class StationIndexTests(StationsTestCase):
         self.assertContains(response, "Чуқурсой")
         self.assertContains(response, self.foreign.name)
 
+    def test_boshqarma_can_filter_one_mtu_and_its_pin_sheet_stays_in_it(self):
+        self.login(self.boss)
+        response = self.client.get(reverse("stations"), {"mtu": self.mtu_b.pk})
+        self.assertContains(response, self.foreign.name)
+        self.assertNotContains(response, "Чуқурсой")
+        pin_url = f"{reverse('pin_sheet')}?mtu={self.mtu_b.pk}"
+        self.assertContains(response, f'action="{pin_url}"')
+
+        sheet = self.client.post(pin_url).content.decode()
+
+        self.assertEqual(len(PIN_ON_SHEET.findall(sheet)), 1)
+        self.assertIn(self.foreign.name, sheet)
+        # Тошкент's printed, unused sheet keeps working.
+        self.assertEqual(self.stored(self.station).pin_hash, "")
+
+    def test_the_mtu_filter_is_ignored_for_an_mtu_user(self):
+        self.login(self.user_a)
+        response = self.client.get(reverse("stations"), {"mtu": self.mtu_b.pk})
+        self.assertContains(response, "Чуқурсой")
+        self.assertNotContains(response, self.foreign.name)
+        self.assertContains(response, f'action="{reverse("pin_sheet")}"')
+
     def test_anonymous_is_sent_to_login(self):
         response = self.client.get(reverse("stations"))
         self.assertRedirects(response, reverse("staff_login"), fetch_redirect_response=False)
@@ -346,7 +416,7 @@ class StationIndexTests(StationsTestCase):
 
     def test_bad_names_are_refused(self):
         self.login(self.user_a)
-        for name in ["чуқурсой", "=1+1", ""]:
+        for name in ["чуқурсой", "=1+1", "", "Альфа\x0bбекат"]:
             with self.subTest(name=name):
                 response = self.client.post(reverse("stations"), {"name": name})
                 self.assertEqual(response.status_code, 200)
@@ -373,7 +443,7 @@ class ToggleTests(StationsTestCase):
 
     def test_deactivate_then_activate(self):
         before = timezone.now()
-        response = self.client.post(reverse("station_toggle", args=[self.station.pk]))
+        response = self.client.post(reverse("station_toggle", args=[self.station.pk]), {"active": "0"})
         after = timezone.now()
 
         self.assertRedirects(response, reverse("station_edit", args=[self.station.pk]), fetch_redirect_response=False)
@@ -386,12 +456,34 @@ class ToggleTests(StationsTestCase):
         change = Change.objects.get()
         self.assertEqual((change.kind, change.user, change.old), ("station", self.user_a, {"active_to": None}))
 
-        self.client.post(reverse("station_toggle", args=[self.station.pk]))
+        self.client.post(reverse("station_toggle", args=[self.station.pk]), {"active": "1"})
 
         station = self.stored(self.station)
         self.assertIsNone(station.active_to)
         self.assertTrue(after <= station.active_from <= timezone.now())
         self.assertEqual(Change.objects.filter(kind="station").count(), 2)
+
+    def test_a_second_click_or_a_stale_page_changes_nothing(self):
+        active_from = self.stored(self.station).active_from
+        url = reverse("station_toggle", args=[self.station.pk])
+        self.client.post(url, {"active": "0"})
+        active_to = self.stored(self.station).active_to
+
+        response = self.client.post(url, {"active": "0"})  # the same button again
+
+        self.assertRedirects(response, reverse("station_edit", args=[self.station.pk]), fetch_redirect_response=False)
+        self.assertEqual(messages_of(response)[-1], "Станция аллақачон ўчирилган.")
+        station = self.stored(self.station)
+        self.assertEqual((station.active_from, station.active_to), (active_from, active_to))
+        self.assertEqual(Change.objects.filter(kind="station").count(), 1)
+
+    def test_a_request_without_the_wanted_state_is_refused(self):
+        for data in [{}, {"active": "2"}]:
+            with self.subTest(data=data):
+                response = self.client.post(reverse("station_toggle", args=[self.station.pk]), data)
+                self.assertEqual(response.status_code, 404)
+        self.assertIsNone(self.stored(self.station).active_to)
+        self.assertFalse(Change.objects.exists())
 
     def test_get_is_not_allowed(self):
         self.assertEqual(self.client.get(reverse("station_toggle", args=[self.station.pk])).status_code, 405)

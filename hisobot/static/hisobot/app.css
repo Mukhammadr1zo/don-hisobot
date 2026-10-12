@@ -123,9 +123,10 @@
   --mono: ui-monospace, "Cascadia Mono", Consolas, "Roboto Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
 }
 
-/* Screen only: paper is always printed with the light tokens. */
+/* Screen only: paper is always printed with the light tokens. charts.js sets .printing on <html> while
+   printing, so the canvases are redrawn with the light tokens too. */
 @media screen and (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.printing) {
     --bg: #101317;
     --surface: #191d23;
     --surface-2: #20252c;

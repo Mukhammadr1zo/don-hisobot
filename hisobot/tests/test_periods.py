@@ -112,7 +112,8 @@ class ModelLogicTests(SimpleTestCase):
     def test_validate_station_name(self):
         for ok in ["Чуқурсой", "А" * 100, "Тошкент-Товар", "1-разъезд"]:
             validate_station_name(ok)
-        for bad in ["", "   ", "  Хамза", "Хамза ", "А" * 101, "=SUM(A1)", "+998", "-1", "@станция", "  =1+1", "\t=1+1"]:
+        for bad in ["", "   ", "  Хамза", "Хамза ", "А" * 101, "=SUM(A1)", "+998", "-1", "@станция", "  =1+1", "\t=1+1",
+                    "Альфа\x0bбекат", "Альфа\nбекат", "Альфа\x01бекат", "Альфа\u200bбекат"]:
             with self.subTest(bad=bad), self.assertRaises(ValidationError):
                 validate_station_name(bad)
 

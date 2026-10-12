@@ -17,8 +17,9 @@ COPY . .
 # settings.py refuses DEBUG=0 without a key; this one exists only during the build.
 RUN DEBUG=0 SECRET_KEY=collectstatic python manage.py collectstatic --noinput
 
+# No home directory: gunicorn's control socket (unused here) would want one, hence --no-control-socket below.
 RUN useradd --system --no-create-home --uid 10001 app
 USER app
 
 EXPOSE 8000
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 -k gthread --workers 3 --threads 4 --timeout 30 --access-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 -k gthread --workers 3 --threads 4 --timeout 30 --access-logfile - --no-control-socket"]

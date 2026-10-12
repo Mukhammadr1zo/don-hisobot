@@ -11,7 +11,7 @@ a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug
 <div class="toolbar">
   <h1>Кунлик жадвал</h1>
   <span class="spacer"></span>
-  <a class="btn" href="{{ export_url }}">Excel юклаб олиш</a>
+  <a class="btn no-print" href="{{ export_url }}">Excel юклаб олиш</a>
 </div>
 <form method="get" novalidate class="toolbar no-print">
   <div class="field">
@@ -30,12 +30,12 @@ a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug
   <button class="btn">Кўрсатиш</button>
 </form>
 <nav class="pager" aria-label="Кун">
-  <a class="btn" href="{{ prev_url }}" aria-label="Олдинги кун"></a>
+  <a class="btn no-print" href="{{ prev_url }}" aria-label="Олдинги кун"></a>
   <div>
     <h2>{{ day|d }}</h2>
     <p class="card-sub">{{ start|dt }} – {{ end|dt }}</p>
   </div>
-  {% if next_url %}<a class="btn" href="{{ next_url }}" aria-label="Кейинги кун"></a>{% else %}<span class="btn" aria-disabled="true"></span>{% endif %}
+  {% if next_url %}<a class="btn no-print" href="{{ next_url }}" aria-label="Кейинги кун"></a>{% else %}<span class="btn no-print" aria-disabled="true"></span>{% endif %}
 </nav>
 
 {% if groups %}

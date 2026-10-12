@@ -31,7 +31,7 @@ Classes and markup: static/hisobot/app.css and _styleguide.html (/_uslub/ in DEB
     {% with here=request.resolver_match.url_name %}
     <nav class="nav" aria-label="Бўлимлар">
       <a href="{% url 'staff_now' %}"{% if here == 'staff_now' %} aria-current="page"{% endif %}>Ҳозир</a>
-      <a href="{% url 'staff_daily' %}"{% if here == 'staff_daily' %} aria-current="page"{% endif %}>Кунлик жадвал</a>
+      <a href="{% url 'staff_daily' %}"{% if here == 'staff_daily' or here == 'staff_entry' %} aria-current="page"{% endif %}>Кунлик жадвал</a>
       <a href="{% url 'staff_report' %}"{% if here == 'staff_report' %} aria-current="page"{% endif %}>Ҳисобот</a>
       <a href="{% url 'stations' %}"{% if here == 'stations' or here == 'station_edit' or here == 'stations_import' or here == 'pin_sheet' or here == 'station_pin' %} aria-current="page"{% endif %}>Станциялар</a>
       <span class="nav-gap"></span>

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest import mock
 
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -184,7 +185,7 @@ class DailyTests(StaffTestCase):
         self.assertInHTML('<td class="num is-missing">—</td>', html)  # second: nothing at all
         self.assertInHTML('<td class="num">5*</td>', html)  # third: the day period is missing
         self.assertIn("Бир давр киритилмаган", html)
-        self.assertInHTML('<a class="btn" href="/xodim/eksport/?d=2026-10-11">Excel юклаб олиш</a>', html)
+        self.assertInHTML('<a class="btn no-print" href="/xodim/eksport/?d=2026-10-11">Excel юклаб олиш</a>', html)
         self.assertNotIn("<tfoot>", html)
 
     def test_totals_per_mtu_and_a_grand_total_across_mtus(self):
@@ -216,7 +217,7 @@ class DailyTests(StaffTestCase):
         self.assertContains(response, f'href="{entry_url(self.first, PE)}"')
         self.assertNotContains(response, entry_url(self.first, tk(12, 20)))
         self.assertContains(response, 'href="?d=2026-10-11"')
-        self.assertInHTML('<span class="btn" aria-disabled="true"></span>', response.content.decode())
+        self.assertInHTML('<span class="btn no-print" aria-disabled="true"></span>', response.content.decode())
 
 
 class EntryTests(StaffTestCase):
@@ -310,3 +311,44 @@ class EntryTests(StaffTestCase):
         )
         self.assertInHTML("<div>Туширилган: — → 3</div>", html)
         self.assertInHTML("<div>Кириб келган: — → 4</div>", html)
+
+    def test_a_period_before_the_opening_is_refused_before_the_form(self):
+        # The stations opened at 01.10 08:00: the night period 30.09 20:00 – 01.10 08:00 starts before that.
+        url = entry_url(self.first, tk(1, 8))
+        back = reverse("staff_daily") + "?d=2026-10-01"
+        self.login(self.user_a)
+        response = self.client.get(url)
+        self.assertRedirects(response, back, fetch_redirect_response=False)
+        self.assertEqual([str(m) for m in get_messages(response.wsgi_request)], [balance.MESSAGES["before_opening"]])
+        response = self.client.post(url, {"unloaded": 1, "arrived": 2, "version": 0, "prev": 10})
+        self.assertRedirects(response, back, fetch_redirect_response=False)
+        self.assertFalse(Entry.objects.exists())
+        # The first period that starts at the opening is open.
+        self.assertEqual(self.client.get(entry_url(self.first, tk(1, 20))).status_code, 200)
+
+    def test_back_keeps_the_boshqarma_on_the_stations_mtu_and_the_nav_marks_the_daily_table(self):
+        self.login(self.boss)
+        html = self.client.get(entry_url(self.first, PE)).content.decode()
+        self.assertInHTML(
+            f'<a class="back" href="/xodim/jadval/?d=2026-10-12&amp;mtu={self.mtu_a.pk}">Орқага</a>', html
+        )
+        self.assertInHTML('<a href="/xodim/jadval/" aria-current="page">Кунлик жадвал</a>', html)
+        self.login(self.user_a)
+        html = self.client.get(entry_url(self.first, PE)).content.decode()
+        self.assertInHTML('<a class="back" href="/xodim/jadval/?d=2026-10-12">Орқага</a>', html)
+
+
+class PhoneWidthTests(StaffTestCase):
+    def test_list_rows_keep_only_narrow_items_beside_the_station_name(self):
+        # A wide badge beside the name squeezes it to a letter a line at 360px (.list lets only the name shrink).
+        self.entry(self.first, PE, unloaded=12, arrived=34, calc=56)
+        self.entry(self.second, PE, unloaded=1, arrived=1, calc=9, override=7)
+        self.login(self.user_a)
+        html = self.client.get(reverse("staff_now")).content.decode()
+        self.assertNotIn('<span class="badge-warn">Топширилмаган</span>', html)
+        self.assertInHTML(
+            f'<li><a href="{entry_url(self.first, PE)}"><span>Чуқурсой<br><small class="muted">12 · 34 · '
+            f'<span>56</span></small></span><span class="badge-ok">{periods.local(Entry.objects.get(station=self.first).updated_at):%H:%M}</span></a></li>',
+            html,
+        )
+        self.assertIn("· ҳисобланган: 9</small>", html)

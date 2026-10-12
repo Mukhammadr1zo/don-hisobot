@@ -22,7 +22,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     logging: *logging
 
   web:
@@ -42,6 +43,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Healthy once migrate has finished and gunicorn answers: `docker compose up --wait` returns only then.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/healthz', headers={'Host': os.environ['ALLOWED_HOSTS']}), timeout=5)"
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 60s
     logging: *logging
 
   db:
