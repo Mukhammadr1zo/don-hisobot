@@ -64,14 +64,18 @@ docker compose exec web python manage.py seed
 curl https://<domen>/healthz             # {"ok": true, "time": "..."}
 ```
 
-`SECRET_KEY` va `DB_PASSWORD` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+`SECRET_KEY` va `DB_PASSWORD` yaratish: `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
 `DB_PASSWORD` bazaga faqat birinchi `docker compose up` da yoziladi (`pgdata` tomi bo'sh bo'lganda); keyin `.env` da
 o'zgartirish bazani o'zgartirmaydi va web ulana olmaydi (`password authentication failed`). Almashtirish kerak
 bo'lsa, avval bazada: `docker compose exec db psql -U hisobot -c "ALTER USER hisobot PASSWORD 'yangi'"`, so'ng
 `.env` ni o'zgartirib `docker compose up -d --wait`. `docker compose down -v` ishlatmang: u bazani o'chiradi.
 
-`up` «address already in use» bilan to'xtagan bo'lsa: portni bo'shatib, `docker compose up -d --wait
---force-recreate caddy` bajaring (oddiy qayta `up` Caddy ni portsiz ishga tushirishi mumkin).
+`up` «address already in use» bilan to'xtagan bo'lsa, portni bo'shatib quyidagini bajaring (oddiy qayta `up`
+Caddy ni portsiz ishga tushirishi mumkin):
+
+```sh
+docker compose up -d --wait --force-recreate caddy
+```
 
 Yangilash (avval zaxira; Caddy `Caddyfile` o'zgarishini faqat qayta ishga tushganda ko'radi):
 
@@ -118,19 +122,22 @@ Zaxira fayllari faqat egasiga o'qiladi (ularda PIN va parol xeshlari bor).
 ### Tiklash
 
 Baza yangidan yaratiladi va zaxira bitta tranzaksiyada to'liq yoziladi; keyin `migrate` sxemani joriy kodga
-olib chiqadi. Birinchi qator hozirgi holatni ham saqlaydi: `dropdb` uni o'chiradi.
+olib chiqadi. Faqat `f=` qatorini o'zgartiring. Avval dump tekshiriladi, keyin hozirgi holat ham zaxiralanadi
+(`dropdb` uni o'chiradi); `&&` zanjiri birinchi xatoda to'xtaydi.
 
 ```sh
-./backup.sh
-docker compose stop web
-docker compose exec -T db dropdb -U hisobot --maintenance-db=postgres hisobot
-docker compose exec -T db createdb -U hisobot hisobot
-docker compose exec -T db pg_restore -U hisobot -d hisobot --single-transaction --exit-on-error < backups/hisobot-2026-10-12_2200.dump
+f=backups/hisobot-2026-10-12_2200.dump
+docker compose exec -T db pg_restore --list < "$f" > /dev/null &&
+./backup.sh &&
+docker compose stop web &&
+docker compose exec -T db dropdb -U hisobot --maintenance-db=postgres hisobot &&
+docker compose exec -T db createdb -U hisobot hisobot &&
+docker compose exec -T db pg_restore -U hisobot -d hisobot --single-transaction --exit-on-error < "$f" &&
 docker compose up -d --wait
 ```
 
-`pg_restore` xato chiqarsa, web ni ishga tushirmang: baza bo'sh qoladi. Boshqa `.dump` bilan qayta urinib ko'ring
-yoki birinchi qatorda olingan zaxirani tiklang.
+Zanjir `pg_restore` da to'xtasa, web to'xtagan va baza bo'sh qoladi: web ni ishga tushirmang. Boshqa `.dump` bilan
+qayta urinib ko'ring yoki `./backup.sh` hozirgina chiqargan zaxirani tiklang.
 
 Sessiyalar zaxiraga kirmaydi: tiklangandan keyin hamma qayta kiradi. Zaxiradan keyin yangilangan PIN va
 parollar ham eski holiga qaytadi: kerak bo'lsa ularni qayta yangilang.

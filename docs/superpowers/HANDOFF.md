@@ -27,6 +27,9 @@ that fails on the old code:
    reason (hiding the link needs a per-cell flag and would also hide the carried opening value).
 3. Production-readiness audit (scale with 200 stations × 2 years, the README followed literally on a real stack,
    failure modes, security of the running stack, every visible string): 12 of 21, fixed in `0794060`.
+4. Check of that commit: 3 README issues confirmed and fixed after it (the restore is one `&&` chain that checks
+   the dump first, so a typo can no longer start web on an empty database; a 50-byte key recipe for `check
+   --deploy`; the port-recovery command on its own line). Both restore paths were run on the stack.
 
 Real runs:
 - Browser (Playwright, 360px and 1280px): seed, roster import, PIN sheet on screen and as PDF, station login and
