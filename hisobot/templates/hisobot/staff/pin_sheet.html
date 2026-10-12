@@ -1,0 +1,35 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% comment %}
+The only place a plaintext PIN is ever shown. The view sends Cache-Control: no-store; the PINs are in no message,
+log or later page, so a lost sheet is replaced by issuing new PINs.
+{% endcomment %}
+{% block title %}ПИН варақ · {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="toolbar no-print">
+  <h1>ПИН варақ</h1>
+  <span class="spacer"></span>
+  <div class="actions">
+    <a class="btn btn-quiet" href="{% url 'stations' %}">Станциялар</a>
+    <button class="btn btn-primary" type="button" onclick="window.print()">Чоп этиш</button>
+  </div>
+</div>
+<div class="notice-warn no-print" role="status">
+  ПИН фақат бир марта кўрсатилади. Варақни чоп этиб, станцияга топширинг.
+  {% if renewed %}Эски ПИН энди ишламайди, станциянинг очиқ сессиялари тугади.{% else %}Варақ йўқолса, «ПИН яратиш» ни қайта босинг: ҳали ишлатилмаган ПИНлар янгисига алмашади.{% endif %}
+</div>
+<p class="print-only">Дон ҳисоботи · ПИН варақ · {{ now|dt }}</p>
+<section>
+  {% for strip in strips %}
+  <div class="pin-strip">
+    <div>
+      <div class="pin-name">{{ strip.station.name }}</div>
+      <div class="muted">{{ strip.station.mtu.name }} МТУ</div>
+      <div class="pin-url">{{ strip.url }}</div>
+    </div>
+    <div class="pin-code"><small>ПИН</small>{{ strip.pin }}</div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

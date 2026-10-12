@@ -1,0 +1,49 @@
+{% extends "hisobot/base.html" %}
+{% block title %}Импорт · {{ block.super }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{% url 'stations' %}">Станциялар</a>
+<h1>Станцияларни импорт қилиш</h1>
+{% if errors %}
+<div class="notice-error" role="alert">
+  <p>Импорт бажарилмади, ҳеч нарса сақланмади:</p>
+  <ul>
+    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="narrow stack">
+  <p>Excel (.xlsx) файлининг биринчи варағи ўқилади. Биринчи қатор сарлавҳа: <strong>МТУ | Станция номи</strong>. Кейинги ҳар бир қатор битта станция; қаторлар тартиби рўйхатдаги тартиб бўлади.</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>МТУ</th><th>Станция номи</th></tr></thead>
+      <tbody>
+        {% with mtu=mtus.0.name|default:"Тошкент" %}
+        <tr><td>{{ mtu }}</td><td>Чуқурсой</td></tr>
+        <tr><td>{{ mtu }}</td><td>Тошкент-Товар</td></tr>
+        <tr><td>{{ mtu }}</td><td>Сергели</td></tr>
+        {% endwith %}
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li>МТУ номи: {% for mtu in mtus %}«{{ mtu.name }}»{% if not forloop.last %}, {% endif %}{% endfor %}. Катта-кичик ҳарф фарқ қилмайди.</li>
+    <li>Тизимда бор станциялар ўтказиб юборилади: номи ўзгармайди, ўчирилмайди, ПИНига тегилмайди.</li>
+    <li>Битта хато бўлса ҳам ҳеч нарса сақланмайди; хатолар қатор рақами билан кўрсатилади.</li>
+    <li>Файл 1 МБ гача, 1000 та станциягача. Бўш қаторлар ҳисобга олинмайди.</li>
+  </ul>
+  <form method="post" enctype="multipart/form-data" novalidate class="stack">
+    {% csrf_token %}
+    <div class="field">
+      <label for="roster-file">Станциялар рўйхати (.xlsx)</label>
+      <input type="file" id="roster-file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      <p class="field-hint">Биринчи қатор: МТУ | Станция номи. 1 МБ ва 1000 қаторгача.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary">Импорт қилиш</button>
+      <a class="btn btn-quiet" href="{% url 'stations' %}">Бекор қилиш</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

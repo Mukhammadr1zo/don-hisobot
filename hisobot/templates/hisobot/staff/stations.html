@@ -1,0 +1,71 @@
+{% extends "hisobot/base.html" %}
+{% load hisobot_extras %}
+{% block title %}Станциялар · {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <h1>Станциялар</h1>
+  <span class="spacer"></span>
+  <div class="actions">
+    <a class="btn" href="{% url 'stations_import' %}">Импорт</a>
+    <button class="btn btn-primary" form="pin-form">ПИН яратиш</button>
+  </div>
+</div>
+{# The checkboxes in the table belong to this form through their form="pin-form" attribute: forms cannot nest. #}
+<form id="pin-form" method="post" action="{% url 'pin_sheet' %}">{% csrf_token %}</form>
+<p class="muted">«ПИН яратиш» белгиланган станцияларга, ҳеч бири белгиланмаса ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларга янги ПИН беради. Ишлатилган ПИН станция саҳифасида янгиланади.</p>
+
+<details{% if form.errors %} open{% endif %}>
+  <summary>Станция қўшиш</summary>
+  <div class="narrow stack">
+    <form method="post" novalidate class="stack">
+      {% csrf_token %}
+      {% if request.user.is_boshqarma %}{# an MTU user's form has no МТУ field: its own MTU is forced #}
+      <div class="field">
+        <label for="{{ form.mtu.id_for_label }}">{{ form.mtu.label }}</label>
+        {{ form.mtu }}
+        {{ form.mtu.errors }}
+      </div>
+      {% endif %}
+      <div class="field">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {{ form.name.errors }}
+      </div>
+      <div class="actions"><button class="btn btn-primary">Сақлаш</button></div>
+    </form>
+  </div>
+</details>
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="key">Станция</th>
+        <th>Ҳолат</th>
+        <th>ПИН</th>
+        <th>Охирги кириш</th>
+        <th>Блок</th>
+        <th>Амаллар</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mtu, stations in groups %}
+      <tr class="group"><th colspan="6"><span>{{ mtu.name }} МТУ</span></th></tr>
+      {% for station in stations %}
+      <tr{% if not station.is_active %} class="muted"{% endif %}>
+        <th scope="row"><label class="check"><input type="checkbox" name="station" value="{{ station.pk }}" form="pin-form"{% if not station.is_active or station.pin_state == 'used' %} disabled{% endif %}> {{ station.name }}</label></th>
+        <td>{% if station.is_active %}<span class="badge-ok">Фаол</span>{% else %}<span class="badge-muted">Ўчирилган</span>{% endif %}</td>
+        <td class="nowrap">{% if station.pin_state == 'used' %}<span class="badge-ok">Ишлатилган</span>{% elif station.pin_state == 'unused' %}<span class="badge-warn">Берилган, ишлатилмаган</span>{% else %}<span class="badge-muted">Берилмаган</span>{% endif %}</td>
+        <td class="nowrap">{{ station.last_login_at|dt }}</td>
+        <td>{% if station.locked %}<div class="actions"><span class="badge-bad">Блокланган {{ station.locked_until|dt }} гача</span><form method="post" action="{% url 'station_unlock' station.pk %}">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form></div>{% endif %}</td>
+        <td><a class="btn btn-sm" href="{% url 'station_edit' station.pk %}">Тузатиш</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="muted">Станция йўқ. Уларни импорт қилинг ёки биттадан қўшинг.</td></tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
