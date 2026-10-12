@@ -1,6 +1,6 @@
 # Handoff: where the build stands
 
-Updated 2026-10-12. Branch `claude/youthful-cori-fjo0it`. All 11 plan tasks are built; 265 tests green.
+Updated 2026-10-12. Branch `claude/youthful-cori-fjo0it` (pushed). All 11 plan tasks are built; 270 tests green.
 
 Read in this order: this file, the plan (`docs/superpowers/plans/2026-10-12-don-hisobot.md`), then the spec
 (`docs/superpowers/specs/2026-10-12-don-hisobot-design.md`, Uzbek) for the sections your task names.
@@ -20,7 +20,10 @@ Read in this order: this file, the plan (`docs/superpowers/plans/2026-10-12-don-
 
 Then a whole-branch review: 8 reviewers, each finding checked by an adversarial verifier; 25 of 26 confirmed and
 fixed in `3a23305` (the commit message lists them), each with a test that fails on the old code. A second
-check of that commit ran after it.
+round (regressions, completeness, phone and print in a real browser, security) checked that commit: 12 of 14
+confirmed and fixed in the commit after it. The one rejected: pre-opening cells of the daily table still link
+to the entry page, which now refuses with the reason (kept deliberately: hiding the link needs a per-cell flag
+and would also hide the carried opening value).
 
 A real browser run (Playwright, 360px phone and 1280px desktop) went through: seed, roster import (a foreign
 MTU row refused, then 4 stations), PIN sheet on screen and as PDF, station login with a wrong and the right PIN,
@@ -30,11 +33,10 @@ with both charts, entry history, Excel export opened with openpyxl.
 ## Not done / not verifiable here
 
 - **The Docker image was never built** and the stack never ran: this environment has no Docker daemon.
-  `docker compose config` passes; `collectstatic` and gunicorn with `DEBUG=0` were run directly; the web
-  healthcheck command was run against that gunicorn; `backup.sh` ran against a local PostgreSQL through a
+  `docker compose config` passes; `collectstatic` and gunicorn with `DEBUG=0` were run directly (errors reach
+  stderr with a traceback); the web healthcheck is a TCP connect (gunicorn listens only after `migrate`); `backup.sh` ran against a local PostgreSQL through a
   stand-in `docker`; `pg_restore --clean --if-exists` over a live copy worked. First thing on a machine with
   Docker: `DOMAIN=localhost` stack up, `/healthz` through Caddy (plan Task 11 last step).
-- **Push**: GitHub refused pushes from this session (403, app access). The commits are on the local branch.
 
 ## Running without Docker
 
@@ -51,21 +53,26 @@ Parallel test runs each need their own `TEST_DB_NAME`.
   numbers; «Орқага» goes to the daily table of that date (boshqarma: the station's MTU).
 - Stations: no `Change` row on creation; `pin_sheet` 404s a foreign or malformed checked id; the boshqarma's
   `?mtu=` filters the page and limits «ПИН яратиш» to that MTU; toggle posts `active=0|1` and a repeat is a no-op.
-- Roster import: names are whitespace-collapsed (`" ".join(value.split())`); unpacked size ≤ 20 MB; rows read
-  up to Excel's 1 048 576 with `reset_dimensions()`. `validate_station_name` now also rejects unprintable
-  characters (no migration: the validator is referenced by path).
+- Station names: the roster import and the add/edit forms both collapse whitespace (`" ".join(value.split())`,
+  a no-break space included); `validate_station_name` now also rejects what is still unprintable (`\x01`,
+  zero-width space; no migration: the validator is referenced by path).
+- Roster import: the upload is re-packed with bounded reads (`roster._unpacked`), counting the bytes that really
+  come out: ≤ 2 MB in all, `xl/styles.xml` ≤ 256 KB (openpyxl's cost grows up to 100× the XML). Rows are read up
+  to Excel's 1 048 576 with `reset_dimensions()`.
 - Summary: `summary()` / `daily_series()` take `now`; data nobody entered is `None`, never 0; `daily_series` uses
   `reports._latest` / `reports._stock` (private) to keep a fixed query count — make them public if touched again.
 - Report and export dates are clamped to the latest report date. Export «Жами» rows are blank for a period that
   has not ended. Grey (`is-missing`) on the report only where something was expected.
 - Chart.js 4.4.7 UMD comes from the npm registry tarball (shasum matched the registry); cdnjs is blocked here.
   Dark chart colours were re-stepped to pass the dataviz validator. Charts redraw with light tokens for print.
-- `LOGGING` sends `django` ERROR records to stderr, so 500s reach `docker compose logs web`.
+- `LOGGING` puts an ERROR stderr handler (DEBUG off only) on the root logger, so 500s reach `docker compose logs
+  web`; configuring the `django` logger itself would wipe runserver's request log.
 - Gunicorn runs with `--no-control-socket` (the `app` user has no home).
 
 ## Open minor items (none blocking)
 
 - Phone nav for boshqarma scrolls sideways with a hidden scrollbar (`app.css` ~244).
+- Station edit page's links back to Станциялар do not carry the boshqarma's `?mtu=` (the list's unlock does).
 - `test_access`: no case with a station both locked and IP-throttled (order LOCKED before THROTTLED is unpinned).
 - `test_shell` healthz test does not assert the DB round trip.
 - `test_balance` thread joins have no timeout; the `last is None` half of the gap flag is untested.
