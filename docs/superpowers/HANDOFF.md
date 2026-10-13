@@ -91,6 +91,17 @@ CA; production servers do not.
   «Саҳифа эскирган», «Бу саҳифа тугма орқали очилади», «Тизим қайта ишга тушмоқда», «Парол жуда оддий ёки
   логинга ўхшаш», the export footer lines.
 
+## Next steps
+
+1. Bring the work onto the main line: `feat/tizim` is an ancestor of `claude/youthful-cori-fjo0it`, so it
+   fast-forwards (`git checkout feat/tizim && git merge --ff-only claude/youthful-cori-fjo0it && git push`).
+2. Deploy by README «Serverga joylashtirish»; then the post-start checks there (healthz, client IP, a hand-run
+   `backup.sh`, the cron line).
+3. With the customer's roster: «Станциялар» → Импорт, «ПИН яратиш», print and hand out the sheets.
+4. Have a native speaker read the wording listed under "Open minor items".
+5. Any code change: tests first (`uv run python manage.py test hisobot --noinput`), `ruff check hisobot config`,
+   and keep this file current.
+
 ## Still needed from the customer
 
 The station roster (МТУ | Станция номи), a server and domain, and where backups are kept off the server.
