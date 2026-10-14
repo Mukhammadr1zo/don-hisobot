@@ -135,7 +135,10 @@ LOGGING = {
 }
 
 PIN_LOCK_EVERY = 5
-PIN_LOCK_STEPS = [timedelta(minutes=15), timedelta(hours=1), timedelta(hours=4), timedelta(hours=24)]
+PIN_LOCK_STEPS = [timedelta(minutes=15), timedelta(hours=1)]
+# A 4-digit PIN has 10 000 values: after this many wrong PINs in a row only the МТУ («Блокдан чиқариш») reopens
+# the station, so an attacker gets at most this many guesses (0.15%) each time the МТУ steps in.
+PIN_HARD_LOCK_AFTER = 15
 PIN_IP_FAILS_PER_HOUR = 30
 STAFF_IP_FAILS = 10
 STAFF_IP_WINDOW = timedelta(minutes=15)

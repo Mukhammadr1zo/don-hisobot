@@ -13,7 +13,7 @@
   <div class="actions">
     {% if station.is_active %}<span class="badge-ok">Фаол</span>{% else %}<span class="badge-muted">Ўчирилган</span>{% endif %}
     {% if pin_state == 'used' %}<span class="badge-ok">ПИН ишлатилган</span>{% elif pin_state == 'unused' %}<span class="badge-warn">ПИН берилган, ишлатилмаган</span>{% else %}<span class="badge-muted">ПИН берилмаган</span>{% endif %}
-    {% if locked %}<span class="badge-bad">Блокланган {{ station.locked_until|dt }} гача</span>{% endif %}
+    {% if locked %}<span class="badge-bad">{% if hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span>{% endif %}
   </div>
 </div>
 

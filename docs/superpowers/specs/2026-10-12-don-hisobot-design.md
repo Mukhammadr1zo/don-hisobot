@@ -89,12 +89,12 @@ Misol (sutka 12.10 = 11.10 20:00 → 12.10 20:00):
 
 ## 7. Stansiya kirishi
 
-- **PIN:** 8 ta tasodifiy raqam (`secrets`), `1234 5678` ko'rinishida chop etiladi, Django hasher bilan saqlanadi, ochiq holda saqlanmaydi va logga yozilmaydi.
+- **PIN:** 4 ta tasodifiy raqam (`secrets`), `1234` ko'rinishida chop etiladi (buyurtmachi qarori, 2026-10-14), Django hasher bilan saqlanadi, ochiq holda saqlanmaydi va logga yozilmaydi.
 - **Oqim:** `/` da 6 ta MTU tugmasi → stansiyalar ro'yxati → `/s/<id>` da PIN maydoni.
 - **Sessiya:** `station_id` va `pin_version`, 30 kun (har so'rovda uzayadi). Har kirishda sessiya avval tozalanadi. Har so'rovda `pin_version` va `active_to` qayta tekshiriladi. Stansiya faqat sessiyadan olinadi, manzilda faqat `period_end` bo'ladi.
 - **Cheklov** (hash hisoblashdan oldin): stansiya bloki; IP bo'yicha soatiga 30 ta xato (IPv6 /64 bo'yicha).
-- **Blok:** har 5-ketma-ket xato stansiyaga yangi kirishni 15 daqiqa, 1 soat, 4 soat, keyin har safar 24 soatga yopadi. Muvaffaqiyatli kirish yoki PIN yangilash sanoqni nolga tushiradi. Ochiq sessiyalarga ta'sir qilmaydi.
-- **MTU amallari** (`change` ga yoziladi): «Блокдан чиқариш» faqat blokni ochadi. «ПИН янгилаш» yangi PIN beradi, `pin_version + 1` qiladi, shu stansiyaning barcha sessiyalari tugaydi.
+- **Blok:** 5-ketma-ket xato stansiyaga yangi kirishni 15 daqiqaga, 10-xato 1 soatga yopadi; 15-xatodan keyin stansiya MTU «Блокдан чиқариш» bosmaguncha yopiq (4 xonali PIN'da bir urinish seriyasida topish ehtimoli 0,15%). Muvaffaqiyatli kirish, PIN yangilash yoki blokdan chiqarish sanoqni nolga tushiradi. Ochiq sessiyalarga ta'sir qilmaydi.
+- **MTU amallari** (`change` ga yoziladi): «Блокдан чиқариш» blokni ochadi va xatolar sanog'ini nolga tushiradi. «ПИН янгилаш» yangi PIN beradi, `pin_version + 1` qiladi, shu stansiyaning barcha sessiyalari tugaydi.
 - **PIN varaq:** «ПИН яратиш» faqat hali ishlatilmagan PIN'lar uchun (`pin_hash` yoki `last_login_at` NULL). Javob sahifasi chop etiladigan varaq (stansiya, havola, PIN), `Cache-Control: no-store`. Varaq yo'qolsa amal qayta bajariladi.
 - **Import:** `.xlsx`, birinchi varaq, sarlavha qatori, ustunlar `МТУ | Станция номи`; qator tartibi = saralash tartibi. Chegara: 1 MB, 1000 qator. Hammasi yoki hech narsa; xatolar qator raqami bilan. Yangi (МТУ, nom) juftlarini qo'shadi, borlarini o'tkazib yuboradi; nomni o'zgartirmaydi, o'chirmaydi, PIN'ga tegmaydi. MTU akkauntida boshqa MTU qatori xato hisoblanadi.
 

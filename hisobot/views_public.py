@@ -18,6 +18,7 @@ PIN_ERRORS = {
     access.Login.LOCKED: "Кириш вақтинча ёпилган. {until} дан кейин уриниб кўринг ёки МТУга мурожаат қилинг",
     access.Login.THROTTLED: TOO_MANY,
     access.Login.NO_PIN: "Бу станцияга ПИН ҳали берилмаган. МТУга мурожаат қилинг",
+    access.Login.BLOCKED: "ПИН кўп марта нотўғри терилди, кириш ёпилди. МТУга мурожаат қилинг: улар блокдан чиқаради",
 }
 STAFF_ERRORS = {access.Login.BAD: "Логин ёки парол нотўғри", access.Login.THROTTLED: TOO_MANY}
 
@@ -97,16 +98,41 @@ def styleguide(request):
     ?kim=stansiya | mtu | mehmon shows the page as that principal sees the top bar (default: boshqarma).
     """
     kim = request.GET.get("kim", "boshqarma")
+    toshkent = Mtu(id=1, name="Тошкент", sort=1)
     if kim == "stansiya":
-        request.station = Station(name="Чуқурсой")
+        request.station = Station(name="Чуқурсой", mtu=toshkent)
     elif kim in ("mtu", "boshqarma"):
-        request.user = User(username=kim, mtu=Mtu(id=1, name="Тошкент") if kim == "mtu" else None)
+        request.user = User(username=kim, mtu=toshkent if kim == "mtu" else None)
     now = timezone.now()
     pe = periods.last_ended(now)
+    # The mockup's numbers: name, submitted, expected, unloaded, arrived, remaining, one of its stations.
+    sample = [
+        ("Тошкент", 21, 24, 46, 52, 118, "Чуқурсой"),
+        ("Қўқон", 15, 19, 31, 28, 74, "Андижон-1"),
+        ("Бухоро", 19, 19, 38, 41, 96, "Навоий"),
+        ("Қўнғирот", 11, 16, 17, 22, 63, "Хива"),
+        ("Қарши", 14, 18, 29, 25, 71, "Шаҳрисабз"),
+        ("Термиз", 9, 12, 14, 19, 40, "Денов"),
+    ]
+    mtus = [
+        {"mtu": Mtu(name=name, sort=sort), "submitted": n, "expected": m, "missing": m - n,
+         "unloaded": u, "arrived": a, "remaining": r, "dots": [True] * n + [False] * (m - n), "station": station}
+        for sort, (name, n, m, u, a, r, station) in enumerate(sample, start=1)
+    ]  # fmt: skip
+    keys = ("submitted", "expected", "missing", "unloaded", "arrived", "remaining")
+    icons = [  # the symbols of base.html's sprite, #i-<name>
+        "grain", "moon", "sun", "clock", "check", "wait", "minus-circle", "pencil", "arrow", "left", "right",
+        "down", "plus", "minus", "search", "lock", "user", "menu", "download", "print",
+    ]  # fmt: skip
     context = {
+        "kim": kim,
         "now": now,
         "pe": pe,
         "prev_pe": periods.prev_end(pe),
+        "deadline": pe + periods.STATION_WINDOW,
+        "mtus": mtus,
+        "total": {key: sum(row[key] for row in mtus) for key in keys},
+        "icons": icons,
         "form": EntryForm(initial={"version": 0, "prev": 12}),
         "bad_form": EntryForm({"xato-unloaded": "1000", "xato-arrived": "", "xato-version": "0"}, prefix="xato"),
     }

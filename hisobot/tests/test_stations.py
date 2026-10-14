@@ -19,7 +19,7 @@ from hisobot import access, balance, periods, roster
 from hisobot.models import Change, LoginFailure, Mtu, Station, User
 
 HEADER = ("МТУ", "Станция номи")
-PIN_ON_SHEET = re.compile(r"<small>ПИН</small>\s*(\d{4} \d{4})")
+PIN_ON_SHEET = re.compile(r"<small>ПИН</small>\s*(\d{4})")
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
@@ -311,14 +311,17 @@ class PinSheetTests(StationsTestCase):
     def setUp(self):
         self.login(self.user_a)
         self.given = Station.objects.create(mtu=self.mtu_a, name="Янгийўл", sort=2)
-        self.old_pin = access.set_pin(self.given, actor=self.boss, ip="10.0.0.1")
+        with mock.patch.object(access, "new_pin", return_value="7299"):
+            self.old_pin = access.set_pin(self.given, actor=self.boss, ip="10.0.0.1")
         self.used = Station.objects.create(mtu=self.mtu_a, name="Бекобод", sort=3)
         access.set_pin(self.used, actor=self.boss, ip="10.0.0.1")
         Station.objects.filter(pk=self.used.pk).update(last_login_at=timezone.now())
         self.off = Station.objects.create(mtu=self.mtu_a, name="Ўчган", sort=4, active_to=timezone.now())
 
     def sheet(self, **data):
-        return self.client.post(reverse("pin_sheet"), data)
+        # Distinct, recognisable PINs: four random digits could repeat, or match a year or a count on the page.
+        with mock.patch.object(access, "new_pin", side_effect=(f"{n}" for n in range(7301, 7400))):
+            return self.client.post(reverse("pin_sheet"), data)
 
     def test_sheet_shows_each_new_pin_once_and_no_page_shows_it_again(self):
         used_hash = self.stored(self.used).pin_hash
@@ -336,7 +339,6 @@ class PinSheetTests(StationsTestCase):
             self.assertIn(f"http://testserver/s/{station.pk}/", content)
         for pin in pins:
             self.assertEqual(content.count(pin), 1)
-            self.assertNotIn(pin.replace(" ", ""), content)
         self.assertIn("бир марта", content)
         self.assertIn("Тошкент МТУ", content)
         self.assertNotIn(self.foreign.name, content)
@@ -346,9 +348,9 @@ class PinSheetTests(StationsTestCase):
         self.assertEqual(self.stored(self.foreign).pin_hash, "")
 
         later = self.client.get(reverse("stations")).content.decode()
-        for pin in pins + [access.format_pin(self.old_pin)]:
+        self.assertEqual(PIN_ON_SHEET.findall(later), [])
+        for pin in pins + [self.old_pin]:
             self.assertNotIn(pin, later)
-            self.assertNotIn(pin.replace(" ", ""), later)
 
     def test_checked_stations_only(self):
         response = self.sheet(station=[str(self.given.pk), str(self.used.pk)])
@@ -488,7 +490,7 @@ class StationIndexTests(StationsTestCase):
         response = self.client.post(reverse("station_unlock", args=[self.station.pk]))
 
         self.assertRedirects(response, reverse("stations"), fetch_redirect_response=False)
-        self.assertEqual((self.stored(self.station).locked_until, self.stored(self.station).fail_streak), (None, 5))
+        self.assertEqual((self.stored(self.station).locked_until, self.stored(self.station).fail_streak), (None, 0))
         self.assertEqual(Change.objects.get().kind, "unlock")
         self.assertEqual(self.client.get(reverse("station_unlock", args=[self.station.pk])).status_code, 405)
 

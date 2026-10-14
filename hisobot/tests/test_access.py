@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
@@ -15,8 +16,8 @@ from hisobot import access
 from hisobot.access import Login
 from hisobot.models import Change, LoginFailure, Mtu, Station, User
 
-PIN = "12345678"
-WRONG = "00000000"
+PIN = "1234"
+WRONG = "0000"
 AUTH_KEY = "_auth_user_id"
 
 
@@ -138,25 +139,17 @@ class IpTests(SimpleTestCase):
 
 
 class BudgetTests(SimpleTestCase):
-    def test_brute_force_budget_per_station_per_year(self):
-        # Worst case: every guess is made the instant the lock allows it, from as many IPs as needed.
-        elapsed, guesses = timedelta(0), 0
-        while elapsed < timedelta(days=365):
-            guesses += 1
-            elapsed += access._lock_duration(guesses) or timedelta(0)
-        self.assertLessEqual(guesses, 2000)
-        self.assertGreater(guesses, 365)  # the simulation really ran the 24 h steps
+    def test_guesses_before_the_mtu_must_step_in(self):
+        # However patient, an attacker gets PIN_HARD_LOCK_AFTER guesses at a 4-digit PIN per МТУ unlock.
+        self.assertLessEqual(settings.PIN_HARD_LOCK_AFTER / 10**4, 0.002)
 
 
 class PinTests(AccessTestCase):
-    def test_new_pin_is_eight_random_digits(self):
+    def test_new_pin_is_four_random_digits(self):
         pins = {access.new_pin() for _ in range(50)}
         for pin in pins:
-            self.assertRegex(pin, r"^\d{8}$")
+            self.assertRegex(pin, r"^\d{4}$")
         self.assertGreater(len(pins), 1)
-
-    def test_format_pin(self):
-        self.assertEqual(access.format_pin("12345678"), "1234 5678")
 
     def test_set_pin_stores_a_hash_bumps_the_version_and_logs_a_change(self):
         Station.objects.filter(pk=self.station.pk).update(
@@ -165,7 +158,7 @@ class PinTests(AccessTestCase):
 
         pin = access.set_pin(self.station, actor=self.user_a, ip="10.0.0.9")
 
-        self.assertRegex(pin, r"^\d{8}$")
+        self.assertRegex(pin, r"^\d{4}$")
         stored = self.stored(self.station)
         self.assertNotIn(pin, stored.pin_hash)
         self.assertTrue(check_password(pin, stored.pin_hash))
@@ -208,8 +201,8 @@ class StationLoginTests(AccessTestCase):
         self.assertEqual(self.client.get("/t/station/").content.decode(), f"station {self.station.pk}")
         self.assertIsNotNone(self.stored(self.station).last_login_at)
 
-    def test_pin_may_be_typed_with_the_printed_space(self):
-        self.assertEqual(self.pin_login(self.station, " 1234 5678 "), Login.OK)
+    def test_stray_spaces_in_the_pin_are_ignored(self):
+        self.assertEqual(self.pin_login(self.station, " 12 34 "), Login.OK)
 
     def test_without_a_session_the_station_view_redirects_home(self):
         self.assertIsNone(self.current_station())
@@ -251,16 +244,10 @@ class StationLoginTests(AccessTestCase):
             self.assertEqual(self.pin_login(self.station, WRONG), Login.BAD)
         self.assertIsNone(self.stored(self.station).locked_until)
 
-    def test_every_fifth_failure_locks_for_longer(self):
-        locks = {
-            5: timedelta(minutes=15),
-            10: timedelta(hours=1),
-            15: timedelta(hours=4),
-            20: timedelta(hours=24),
-            25: timedelta(hours=24),
-        }
+    def test_every_fifth_failure_locks_longer_and_the_fifteenth_until_the_mtu_unlocks(self):
+        locks = {5: timedelta(minutes=15), 10: timedelta(hours=1)}
         now = timezone.now()
-        for n in range(1, 26):
+        for n in range(1, 15):
             with at(now):
                 self.assertEqual(self.pin_login(self.station, WRONG), Login.BAD, n)
                 stored = self.stored(self.station)
@@ -273,7 +260,16 @@ class StationLoginTests(AccessTestCase):
                 else:
                     self.assertFalse(stored.locked_until and stored.locked_until > now, n)
         with at(now):
-            self.assertEqual(self.pin_login(self.station, PIN), Login.OK)
+            self.assertEqual(self.pin_login(self.station, WRONG), Login.BAD)  # the 15th
+        with at(now + timedelta(days=30)):  # time alone never reopens it, and nothing more is guessed
+            self.assertEqual(self.pin_login(self.station, PIN), Login.BLOCKED)
+            self.assertEqual(self.pin_login(self.station, WRONG), Login.BLOCKED)
+        self.assertEqual(self.stored(self.station).fail_streak, 15)
+        self.assertEqual(LoginFailure.objects.filter(station=self.station).count(), 15)
+
+        access.unlock(self.station, actor=self.user_a, ip="10.0.0.9")
+
+        self.assertEqual(self.pin_login(self.station, PIN), Login.OK)
         stored = self.stored(self.station)
         self.assertEqual((stored.fail_streak, stored.locked_until), (0, None))
 
@@ -287,7 +283,7 @@ class StationLoginTests(AccessTestCase):
         self.assertEqual(self.current_station(), self.station)
         self.assertEqual(self.client.get("/t/station/").status_code, 200)
 
-    def test_unlock_clears_only_the_lock(self):
+    def test_unlock_clears_the_lock_and_the_count_of_wrong_pins(self):
         for _ in range(5):
             self.pin_login(self.station, WRONG)
         self.assertEqual(self.pin_login(self.station, PIN), Login.LOCKED)
@@ -295,7 +291,7 @@ class StationLoginTests(AccessTestCase):
         access.unlock(self.station, actor=self.user_a, ip="10.0.0.9")
 
         stored = self.stored(self.station)
-        self.assertEqual((stored.locked_until, stored.fail_streak, stored.pin_version), (None, 5, 1))
+        self.assertEqual((stored.locked_until, stored.fail_streak, stored.pin_version), (None, 0, 1))
         change = Change.objects.get()
         self.assertEqual(
             (change.kind, change.station, change.user, change.ip), ("unlock", self.station, self.user_a, "10.0.0.9")

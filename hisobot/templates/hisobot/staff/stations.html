@@ -71,7 +71,7 @@
         <td>{% if station.is_active %}<span class="badge-ok">Фаол</span>{% else %}<span class="badge-muted">Ўчирилган</span>{% endif %}</td>
         <td class="nowrap">{% if station.pin_state == 'used' %}<span class="badge-ok">Ишлатилган</span>{% elif station.pin_state == 'unused' %}<span class="badge-warn">Берилган, ишлатилмаган</span>{% else %}<span class="badge-muted">Берилмаган</span>{% endif %}</td>
         <td class="nowrap">{{ station.last_login_at|dt }}</td>
-        <td>{% if station.locked %}<div class="actions"><span class="badge-bad">Блокланган {{ station.locked_until|dt }} гача</span><form method="post" action="{% url 'station_unlock' station.pk %}{{ query }}">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form></div>{% endif %}</td>
+        <td>{% if station.locked %}<div class="actions"><span class="badge-bad">{% if station.hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span><form method="post" action="{% url 'station_unlock' station.pk %}{{ query }}">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form></div>{% endif %}</td>
         <td><a class="btn btn-sm" href="{% url 'station_edit' station.pk %}">Тузатиш</a></td>
       </tr>
       {% empty %}

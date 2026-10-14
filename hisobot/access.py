@@ -19,7 +19,7 @@ from .models import Change, LoginFailure, Mtu, Station
 
 
 class PinHasher(PBKDF2PasswordHasher):
-    # ponytail: 8 digits fall to offline guessing whatever one hash costs; the lock ladder is the defence.
+    # ponytail: 4 digits fall to offline guessing whatever one hash costs; the lock ladder is the defence.
     # The default cost (about 0.5 s) would make a 200-station PIN sheet a 90-second request.
     algorithm = "pbkdf2_sha256_pin"
     iterations = 20_000
@@ -48,11 +48,7 @@ def ip_bucket(ip):
 
 
 def new_pin():
-    return f"{secrets.randbelow(10**8):08d}"
-
-
-def format_pin(pin):
-    return f"{pin[:4]} {pin[4:]}"
+    return f"{secrets.randbelow(10**4):04d}"
 
 
 @transaction.atomic
@@ -82,8 +78,10 @@ def issue_unused_pins(stations, *, actor, ip):
 
 @transaction.atomic
 def unlock(station, *, actor, ip):
+    """The МТУ vouches for the station: the lock goes and the count of wrong PINs starts again."""
     station.locked_until = None
-    station.save(update_fields=["locked_until"])
+    station.fail_streak = 0
+    station.save(update_fields=["locked_until", "fail_streak"])
     Change.objects.create(kind="unlock", station=station, user=actor, ip=ip)
 
 
@@ -93,6 +91,11 @@ class Login(enum.Enum):
     LOCKED = "locked"
     THROTTLED = "throttled"
     NO_PIN = "no_pin"
+    BLOCKED = "blocked"  # PIN_HARD_LOCK_AFTER wrong PINs in a row: closed until the МТУ unlocks it
+
+
+def hard_locked(station):
+    return station.fail_streak >= settings.PIN_HARD_LOCK_AFTER
 
 
 def _lock_duration(fail_streak):
@@ -122,14 +125,16 @@ def station_login(request, station, pin):
         now = timezone.now()
         if not station.pin_hash:
             return Login.NO_PIN
+        if hard_locked(station):
+            return Login.BLOCKED
         if station.locked_until and station.locked_until > now:
             return Login.LOCKED
         if _failures(bucket, now - timedelta(hours=1), staff=False) >= settings.PIN_IP_FAILS_PER_HOUR:
             return Login.THROTTLED
-        # The sheet prints "1234 5678"; typing it as printed is not a wrong PIN.
+        # Spaces typed around or inside the PIN are not part of it.
         if not check_password("".join(pin.split()), station.pin_hash):
             station.fail_streak += 1
-            lock = _lock_duration(station.fail_streak)
+            lock = None if hard_locked(station) else _lock_duration(station.fail_streak)
             if lock:
                 station.locked_until = now + lock
             station.save(update_fields=["fail_streak", "locked_until"])

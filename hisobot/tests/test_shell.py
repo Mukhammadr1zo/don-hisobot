@@ -172,9 +172,21 @@ class FilterTests(SimpleTestCase):
         self.assertEqual(self.render("num", -4), "-4")
         self.assertEqual(self.render("num", 137), "137")
 
+    def test_thousands_and_percent(self):
+        # A no-break space: Onest has no glyph for the narrow one (U+202F).
+        self.assertEqual(self.render("thousands", 4716), "4\xa0716")
+        self.assertEqual(self.render("thousands", 999), "999")
+        self.assertEqual(self.render("thousands", -1234567), "-1\xa0234\xa0567")
+        self.assertEqual(self.render("thousands", "abc"), "abc")  # not a number: unchanged, no error
+        percent = Template("{% load hisobot_extras %}{{ n|percent:m }}")
+        # Rounded down: 107 of 108 must not read as 100 %.
+        for n, m, expected in [(89, 108, "82"), (107, 108, "99"), (108, 108, "100"), (0, 12, "0"), (5, 0, "0")]:
+            with self.subTest(n=n, m=m):
+                self.assertEqual(percent.render(Context({"n": n, "m": m})), expected)
+
     def test_missing_values_print_a_dash(self):
         # "" is what Django passes to a filter when the variable does not resolve (entry is None).
-        for name in ("d", "t", "dt", "num"):
+        for name in ("d", "t", "dt", "num", "thousands"):
             for missing in (None, ""):
                 with self.subTest(name=name, missing=missing):
                     self.assertEqual(self.render(name, missing), "—")
@@ -209,6 +221,7 @@ class BaseLayoutTests(TestCase):
         station = Station.objects.create(mtu=Mtu.objects.create(name="Тошкент"), name="Чуқурсой")
         html = self.page(self.request(station=station))
         self.assertIn("Чуқурсой", html)
+        self.assertIn("Тошкент МТУ", html)
         self.assertIn('<form method="post" action="/chiqish/"', html)
         self.assertIn("csrfmiddlewaretoken", html)
         self.assertIn("Чиқиш", html)
@@ -246,6 +259,35 @@ class BaseLayoutTests(TestCase):
         self.assertIn('<a href="/xodim/jadval/" aria-current="page">Кунлик жадвал</a>', html)
         self.assertEqual(html.count("aria-current"), 1)
 
+    def test_pages_add_their_own_css_after_app_css(self):
+        page = Template(
+            '{% extends "hisobot/base.html" %}{% block head %}<link rel="stylesheet" href="/static/sahifa.css">{% endblock %}'
+        )
+        html = page.render(Context({"request": self.request()}))
+        head = html[: html.index("</head>")]
+        self.assertLess(head.index("hisobot/app.css"), head.index("/static/sahifa.css"))
+
+    def test_visitors_and_stations_get_the_narrow_column_unless_the_page_opts_out(self):
+        station = Station.objects.create(mtu=Mtu.objects.create(name="Тошкент"), name="Чуқурсой")
+        for who, request, narrow in [
+            ("visitor", self.request(), True),
+            ("station", self.request(station=station), True),
+            ("staff", self.request(user=User.objects.create_user("boshqarma")), False),
+        ]:
+            with self.subTest(who=who):
+                self.assertEqual('<body class="is-narrow">' in self.page(request), narrow)
+        wide = Template('{% extends "hisobot/base.html" %}{% block layout %}{% endblock %}')
+        self.assertIn('<body class="">', wide.render(Context({"request": self.request()})))
+
+    def test_visitor_pages_can_add_items_beside_the_brand(self):
+        page = Template(
+            '{% extends "hisobot/base.html" %}{% block top_actions %}<a class="back push" href="/">Барча МТУ</a>'
+            "{% endblock %}"
+        )
+        html = page.render(Context({"request": self.request()}))
+        top = html[html.index('<header class="top') : html.index("</header>")]
+        self.assertLess(top.index('class="brand"'), top.index("Барча МТУ"))
+
     def test_messages_are_rendered_as_notices(self):
         request = self.request()
         messages.info(request, "Маълумот")
@@ -263,12 +305,16 @@ class BaseLayoutTests(TestCase):
                 self.assertInHTML(f'<div class="{cls}" role="status">{text}</div>', html)
 
 
-# Every class the plan promises to the feature tasks.
+# Every class the plans promise to the feature tasks (the first design, then the bento one).
 COMPONENTS = [
     "page", "toolbar", "card", "card-grid", "stat", "btn", "btn-primary", "btn-quiet", "btn-danger",
     "field", "num-input", "notice-info", "notice-ok", "notice-warn", "notice-error",
     "badge-ok", "badge-warn", "badge-bad", "badge-muted", "table", "table-wrap",
     "is-missing", "is-override", "is-negative", "is-carried", "list", "print-only", "no-print", "pin-strip",
+    "mtu-1", "mtu-2", "mtu-3", "mtu-4", "mtu-5", "mtu-6", "bento", "tile", "tile-night", "tile-mtu", "panel",
+    "pagehead", "pager", "back", "btn-ink", "btn-white", "btn-tint", "btn-line", "chip", "chip-ok", "chip-alert",
+    "chip-warn", "chip-wait", "chip-mtu", "count", "ibox", "go", "big", "stat-row", "ring", "dots", "dot-row",
+    "share", "legend", "legend-grid", "st", "st-av", "search", "num-field", "stepper", "result", "empty", "chart",
 ]  # fmt: skip
 
 
@@ -287,11 +333,19 @@ class StyleguideTests(SimpleTestCase):
                 self.assertIn(f".{name}", header)
                 self.assertIn(name, classes)
 
-    def test_the_stylesheet_has_a_dark_scheme_and_loads_nothing_external(self):
+    def test_the_stylesheet_is_light_only_and_loads_only_its_own_fonts(self):
         css = Path(finders.find("hisobot/app.css")).read_text(encoding="utf-8")
-        self.assertIn("prefers-color-scheme: dark", css)
+        self.assertIn("color-scheme:light", css)
+        self.assertNotIn("prefers-color-scheme", css)
         self.assertIn("tabular-nums", css)
-        self.assertNotRegex(css, r"@import|url\(|https?:")
+        self.assertNotRegex(css, r"@import|https?:")
+        urls = re.findall(r"url\(([^)]*)\)", css)
+        self.assertTrue(urls)
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertRegex(url, r'^"fonts/[\w-]+\.woff2"$')
+                self.assertTrue(finders.find("hisobot/" + url.strip('"')))
+        self.assertTrue(finders.find("hisobot/fonts/OFL.txt"))
 
 
 class ErrorPageTests(TestCase):

@@ -1,491 +1,756 @@
 /* ==========================================================================
-   Дон ҳисоботи: the whole UI vocabulary. One file, no build step, no JS.
-   Feature templates use only what is listed here. Every item is shown once,
-   with markup to copy, in templates/hisobot/_styleguide.html (/_uslub/ in DEBUG).
+   Дон ҳисоботи: the design system (bento, direction C «Rangli»). One file, no build step, light theme only.
+   Shared vocabulary only: a page's own layout goes in static/hisobot/pages/<area>.css, loaded through
+   {% block head %}. Every item is shown once, with markup to copy, in templates/hisobot/_styleguide.html
+   (/_uslub/ in DEBUG). Font: Onest, self-hosted from fonts/ (OFL.txt).
+
+   COLOUR CARRIES MEANING, NEVER DECORATION ONLY
+   .mtu-1 .mtu-2 .mtu-3 .mtu-4 .mtu-5 .mtu-6
+                    one tint per МТУ, keyed by Mtu.sort: class="mtu-{{ mtu.sort }}" on the element or any ancestor.
+                    Sets --tint (tile), --soft (chips, hover, buttons), --mark (dots, bars, keys) and --deep (text
+                    and strokes on the tint). Without one (or with a sort outside 1–6) a neutral grey set applies.
+   .tile-night      dark: the hero tile and a Тунги давр card; white tiles are the default and Кундузги давр.
+   Status: green = қабул қилинди, red = эътибор талаб / манфий, grey = кутилмоқда («Топширилмаган» is .chip-wait),
+   outlined amber = қўлда киритилган (.chip-warn, never filled): a yellow fill is only Қўнғирот.
 
    LAYOUT
-   .page          the main column; base.html puts it on <main>. Its children are spaced apart.
-   .narrow        34rem column. base.html adds it to .page for stations and visitors;
-                  on a staff page wrap a form in <div class="narrow stack">.
-   .stack         spaces the children of any wrapper the way .page does.
-   .cols          two equal columns from 900px up, one column below.
-   .toolbar       a row of filters and actions that wraps. Put <span class="spacer"></span>
-                  between the left and the right group. Fields inside keep their labels on top.
-   .actions       a row of buttons that wraps.
-   .pager         previous / next period or day: <nav class="pager"><a class="btn" href aria-label="Олдинги давр"></a>
-                  <div>…title…</div><a class="btn" href aria-label="Кейинги давр"></a></nav>. The arrows are drawn by CSS.
-                  No next period yet: <span class="btn" aria-disabled="true"></span>.
-   .back          «Орқага» link with a chevron, 44px tall.
+   Inside .narrow / .is-narrow (the 34rem column of station, PIN and login pages) a .bento always uses the phone layout.
+   .page          <main> (base.html): a 1320px column whose children are spaced apart.
+   .wrap          the same column without the spacing (the top bar).
+   .is-narrow     on <body> (base.html, for visitors and stations): the top bar and <main> are a 34rem column. A page
+                  that needs the full width (a bento page) empties it: {% block layout %}{% endblock %}.
+   .narrow        34rem column; on a staff page wrap a form in <div class="narrow stack">.
+   .stack         spaces the children of any wrapper.        .cols   two equal columns from 900px.
+   .pagehead      title row: <section class="pagehead"><div><h1>…</h1><p class="t-sub">…</p></div>
+                  <nav class="pager">…</nav></section>.
+   .toolbar       filters and actions that wrap; <span class="spacer"></span> pushes the rest right.
+   .actions       a row of buttons that wraps.    .push   margin-left: auto.    .grow   takes the rest of a flex row.
+   .bento         12-column grid of tiles. Children span .span-2 … .span-9, .span-12 columns (full by default);
+                  .row-2 is two rows tall. Up to 1020px: 6 columns, span-2…5 are half, the rest full.
+                  Up to 760px: 2 columns, all full except .phone-half.
+   .back          «Орқага» pill with a chevron.
 
-   SURFACES
-   .card          bordered box; on <a> the whole card is tappable.
-                  Parts: .card-head (title left, badge right), .card-title, .card-sub.
-   .card-grid     grid of cards: 2 across on a phone, up to 6 on a desktop.
-   .stat          big number + caption: <div class="stat"><span class="stat-num">14<small> / 18</small></span>
-                  <span class="stat-cap">топширди</span></div>. Add .is-negative / .is-missing to colour the number.
-   .stat-row      three .stat side by side (the numbers of one period).
-   <progress>     thin bar under an «N / M» stat: <progress value="14" max="18"></progress>.
-   .list          tappable rows: <ul class="list">; each <li> holds ONE child, <a> (whole row is the link,
-                  chevron added) or <div> (static row). The first element inside grows, the rest sit right.
-   .empty         dashed box for «nothing here».
-   .chart         box for a Chart.js canvas (responsive: true, maintainAspectRatio: false).
-                  Colours for charts.js: read --chart-1, --chart-2, --chart-3, --chart-grid, --chart-text
-                  with getComputedStyle(document.documentElement); they follow the dark scheme.
+   TILES
+   .tile          white, 28px radius, a flex column. On <a> the whole tile is the link.
+   .tile-night    the dark tile.      .tile-mtu   the МТУ tint (needs .mtu-N on it or above).
+   .t-head        title row (wraps): .t-title, .t-sub, and anything with .push on the right.
+                  .t-title-lg is the bigger name of an МТУ tile.
+   .t-body        a ring, seal or .ibox beside the numbers: <div class="t-body"><div class="ring">…</div>
+                  <div class="stat-row grow">…</div></div> (the middle of an МТУ tile).
+   .panel         inner panel of a tile.         .empty   dashed box for «nothing here».
+   --raise        background of anything raised on the current surface (rows, station tiles, «Орқага», the pager):
+                  white on the page, the panel colour inside a tile. Use it for a page's own raised items.
+                  --hover is the matching hover fill (the МТУ tint; white inside an МТУ tile).
+                  --field is the fill of inputs: white on the page, the panel colour inside a tile, .num-field
+                  or details.
+   .ibox          44px icon box: .ibox-round .ibox-night .ibox-alert .ibox-mtu .ibox-lg.
+   .go            round arrow in a tile's corner: <span class="go"><svg class="ico">…#i-arrow…</svg></span>.
+   .card          the previous tile, still styled: .card-head .card-title .card-sub, and .card-grid.
 
-   BUTTONS
-   .btn           neutral button, 44px tall; works on <a> and <button>.
-   .btn-primary   the one main action of a screen.
-   .btn-quiet     text-only button (secondary links, «Чиқиш», «Бекор қилиш»).
-   .btn-danger    destructive or session-ending action.
-   .btn-block     full width.            .btn-sm   compact, for table rows (still 44px on touch screens).
+   NUMBERS
+   .big           KPI numeral, 76px: .big-xl 132px (hero), .big-md 44px (the hero's % and, with .muted, its «/ M»),
+                  .big-sm 30px. <div class="kpi-row"><span class="big">175</span><span class="unit-word">вагон</span></div>.
+   .stat          number + caption: <div class="stat"><span class="stat-num">14<small> / 18</small></span>
+                  <span class="stat-cap">топширди</span></div>; .is-negative / .is-missing colour the number.
+   .stat-row      .stat side by side, each as wide as its caption; a stat that does not fit wraps to the next line.
+                  .stat-row.boxed: three equal panels, caption on top (a period's numbers on a station card).
+   .ring          N / M: <div class="ring" style="--p:{{ n|percent:m }}"><b>21</b><span>/ 24</span></div>,
+                  in the --deep of its МТУ. The sprite's #seal is the «Ҳаммаси топширди» state (.seal).
+   .dots          one dot per station: <span class="dots"><i></i><i class="o"></i></span>; a filled dot
+                  топширди, .o топширмаган. 24 to a row; .dots-12 for 12 (the --cols variable).
+   .dot-row       label, dots, value: <div class="dot-row mtu-1"><span>Тошкент</span><span class="dots">…</span>
+                  <span><b>21</b>/24</span></div>.
+   .share         segment bar: <div class="share" role="img" aria-label="…"><span class="mtu-1" style="--v:46"
+                  title="Тошкент · 46"></span>…</div>.
+   progress       thin bar under an «N / M» stat: <progress value="14" max="18"></progress>.
+   .legend        <ul class="legend"><li class="mtu-1"><i class="key"></i>Тошкент <b>118</b></li></ul>;
+                  .legend-grid (<ul class="legend legend-grid">): six items 3 × 2 (2 × 3 on a phone), not 5 + 1;
+                  <i class="key o"></i> is the hollow «топширмаган» dot (the key line above .dot-row rows),
+                  <i class="key-ln series-1"></i> marks a line series, <span class="swatch is-missing"></span> a cell state.
+                  (th.key is something else: the sticky header cell of a table.)
+
+   BUTTONS, CHIPS, ICONS
+   .btn           44px pill, outlined; <a> or <button>. .btn-ink is the one main action (.btn-primary is the same),
+                  .btn-white on a dark tile, .btn-tint on an МТУ tint, .btn-line, .btn-quiet (text only),
+                  .btn-danger. .btn-sm .btn-lg .btn-block, .btn-round (48px, icon only, needs aria-label).
+   .chip          status pill: .chip-ok .chip-alert .chip-warn .chip-wait .chip-mtu .chip-night.
+                  .badge-ok .badge-warn .badge-bad .badge-muted are the same pills under their older names.
+   .count         round counter: <span class="count">19</span>, .count-alert.
+   .ico           <svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg>; .ico-sm. Symbols are in base.html.
+   .wagon         the covered hopper in its МТУ colours: <svg class="wagon mtu-1" viewBox="0 0 160 80"><use href="#wagon"/></svg>.
+
+   NAVIGATION
+   .top .top-in .brand .brand-mark .nav .nav-gap .menu .top-panel .who .role .role-av .ident   the top bar of base.html.
+                  The current section carries aria-current="page".
+   .pager         period or day switcher: <nav class="pager"><a class="btn" href aria-label="Олдинги давр"></a>
+                  <div><span class="ibox ibox-round ibox-night">…#i-moon…</span><div><h2>Тунги давр · 13.10.2026</h2>
+                  <p class="card-sub">12.10 20:00 – 13.10 08:00</p></div></div><a class="btn" href aria-label="Кейинги давр"></a>
+                  </nav>. CSS draws the arrows; no next period: <span class="btn" aria-disabled="true"></span>.
+   .st-grid .st .st-av .st-name   station tiles with a letter avatar: as many 15rem tiles as fit (5 at full
+                  width), 2 on a phone; sized so the longest real names («Қорақопоғистон») stay whole from 390px up.
+   .search        <div class="search"><svg class="ico">…#i-search…</svg><input type="search" …></div>.
 
    FORMS
-   .field         label + control + error: <div class="field"><label for>…</label><input>
-                  <p class="field-error">…</p><p class="field-hint">…</p></div>.
-                  Text, number, date, search, password inputs, <select>, <textarea>, file inputs are styled
-                  without a class. Django's ul.errorlist looks like .field-error; a control with
-                  aria-invalid="true" (Django adds it) gets a red border.
-   .field-row     two fields side by side.
-   .num-input     large centred numeric input for phones (EntryForm widgets already carry it; use it for the PIN too).
-   .check         label wrapping a checkbox: <label class="check"><input type="checkbox"> …</label>.
-   details        <details><summary>Қолдиқни қўлда киритиш</summary>…</details> is styled without a class.
+   .field         <div class="field"><label for>…</label><input><p class="field-error">…</p><p class="field-hint">…</p>
+                  </div>. Inputs, <select>, <textarea> and file inputs need no class. Django's ul.errorlist looks like
+                  .field-error; aria-invalid="true" (Django adds it) turns the control red. .field-label is a
+                  tile-sized label, .help the same as .field-hint. .field-row: two fields side by side.
+   .num-input     big centred number (EntryForm widgets carry it; the PIN too). .stepper: − .num-input +.
+   .num-field     white tile around one number: <div class="num-field"><label for>Туширилган <small>вагон</small>
+                  </label>…</div>.
+   .result        the live «Қолган» tile: .t-title, .t-sub (the sum) and a .big; .is-negative turns it red.
+   .check         <label class="check"><input type="checkbox"> …</label>.
+   details        <details><summary>Қолдиқни қўлда киритиш</summary>…</details>, no class needed.
 
    MESSAGES
-   .notice-info  .notice-ok  .notice-warn  .notice-error    block messages (base.html prints Django messages so).
-   .badge-ok  .badge-warn  .badge-bad  .badge-muted         small status pills.
+   .notice-info .notice-ok .notice-warn .notice-error   block messages (base.html prints Django messages so).
+
+   LISTS
+   .list          tappable rows: <ul class="list">, each <li> holds ONE child: <a> (the whole row is the link, a
+                  chevron is added) or <div> (static row). The first element inside grows, the rest sit right.
 
    TABLES
-   .table-wrap    scroll box around a table: scrolls sideways on a phone.
-   .table         grid table. <th> inside tbody/tfoot (the station name) sticks to the left edge while scrolling;
-                  give its header cell class="key" so the corner sticks too. Put .num on numeric cells.
-                  Rows: tr.group (МТУ title, <th colspan><span>…</span></th>), tr.total («Жами»).
-                  a.cell fills a whole cell and opens the edit form.
-   .is-missing    cell state, grey: nothing entered.         .is-override   yellow: remaining typed by hand.
-   .is-negative   red: negative remaining.                   .is-carried    italic: remaining carried over.
+   .table-wrap    scrolls sideways on a phone.
+   .table         <th> in tbody/tfoot (the station) sticks to the left edge; give its header cell class="key" too.
+                  .num on numeric cells. tr.group: an МТУ title row (<th colspan><span>…</span></th>), tinted
+                  when the row also has mtu-N. tr.total: «Жами». a.cell fills a cell and opens the edit form.
+   .is-missing    grey: nothing entered.            .is-override   yellow with a corner flag: typed by hand.
+   .is-negative   red: negative remaining.          .is-carried    italic: remaining carried over.
                   The states combine. Outside tables they colour text only.
-   .legend        explains the states: <ul class="legend"><li><span class="swatch is-missing"></span>…</li></ul>.
+
+   CHARTS
+   .chart         box for a Chart.js canvas in a tile (responsive: true, maintainAspectRatio: false), or for an inline
+                  <svg preserveAspectRatio="none"> whose <polyline class="series-1"> lines it styles. Series colours
+                  for charts.js: --chart-1 Туширилган, --chart-2 Кириб келган, --chart-3 Қолган, --chart-grid,
+                  --chart-text (read with getComputedStyle(document.documentElement)); in markup .series-1 … .series-3.
 
    PRINT
-   .no-print      hidden on paper.        .print-only   visible only on paper.
-   .pin-strip     one station of the PIN sheet with a dashed cut line; never split across pages.
-                  Parts: .pin-name, .pin-url, .pin-code. .page-break starts a new sheet after the element.
+   .no-print      hidden on paper (the top bar always is).     .print-only   only on paper.
+   .pin-strip     one station of the PIN sheet with a dashed cut line, never split across pages:
+                  .pin-name .pin-url .pin-code. .page-break starts a new sheet after the element.
 
    TEXT
-   .muted  .small  .mono  .nowrap   and  .secret (a one-time password: monospace, selects whole on tap).
-   Numbers are tabular everywhere, so columns of digits line up.
+   .muted .small .mono .nowrap .tnum, .sr (for screen readers only) and .secret (a one-time password).
+   Figures are tabular only where they line up in columns (.table, .legend b, .dot-row, .pin-code); elsewhere
+   add .tnum. Onest's tabular «1» is padded, so «11» would read «1 1» in a ring or a date.
    ========================================================================== */
 
-:root {
-  color-scheme: light dark;
+@font-face{font-family:"Onest";font-style:normal;font-weight:100 900;font-display:swap;
+  src:url("fonts/onest-cyrillic-ext.woff2") format("woff2");
+  unicode-range:U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+@font-face{font-family:"Onest";font-style:normal;font-weight:100 900;font-display:swap;
+  src:url("fonts/onest-cyrillic.woff2") format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Onest";font-style:normal;font-weight:100 900;font-display:swap;
+  src:url("fonts/onest-latin.woff2") format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 
-  --bg: #f3f4f6;
-  --surface: #ffffff;
-  --surface-2: #f6f7f9;
-  --line: #d9dde3;
-  --line-strong: #858e9b;
-  --text: #12161c;
-  --muted: #56606d;
+:root{
+  color-scheme:light;
+  --bg:#f1f0ec; --surface:#fff; --panel:#f6f5f2;
+  --ink:#161a27; --ink-2:#4e5263; --ink-3:#5e6276;
+  --line:#e6e4de; --line-2:#d3d1ca;
+  --night:#1b1f36; --night-2:#272c4b; --night-ink-2:#bcc1d8;
 
-  --accent: #1d4f9e;
-  --accent-hover: #173f80;
-  --on-accent: #ffffff;
-  --hover: rgba(18, 22, 28, 0.06);
+  --ok:#157347; --ok-bg:#dcf2e4;
+  --warn:#7a5200; --warn-bg:#fdefc3;
+  --alert:#b42318; --alert-bg:#fde3e0;
+  --wait-bg:#eceae4;
+  --raise:var(--surface);
 
-  --ok: #17663a;
-  --ok-bg: #e2f3e8;
-  --ok-line: #9fd0b0;
-  --warn: #7a4b00;
-  --warn-bg: #fdf0cc;
-  --warn-line: #e3c165;
-  --bad: #a31919;
-  --bad-bg: #fbe3e1;
-  --bad-line: #e9a49e;
-  --info: #1d4f9e;
-  --info-bg: #e5edfa;
-  --info-line: #a9c1ec;
+  /* МТУ tint when an element has none: a cool grey, apart from the warm --wait-bg of «Киритилмаган». */
+  --tint:#e6e8ef; --soft:#d6dae4; --mark:#868ca1; --deep:#3d4153;
 
-  --missing-bg: #e7e9ed;
-  --override-bg: #ffe9a3;
-  --negative-bg: #f9cbc6;
+  --chart-1:#161a27; --chart-2:#868ca1; --chart-3:#b8bccb; --chart-grid:#e6e4de; --chart-text:#5e6276;
 
-  --chart-1: #1d5fbf;
-  --chart-2: #c2570a;
-  --chart-3: #0b8a66;
-  --chart-grid: #d9dde3;
-  --chart-text: #56606d;
-
-  --radius: 8px;
-  --gap: 16px;
-  --cell-y: 12px;
-  --cell-x: 12px;
-  --wide: 72rem;
-  --font: "Segoe UI", Roboto, "Noto Sans", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "Roboto Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace;
+  --r-tile:28px; --r-panel:18px;
+  --gap:16px; --pad:26px; --side:32px;
+  --cell-y:12px; --cell-x:14px;
+  --font:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"Roboto Mono",monospace;
 }
 
-/* Screen only: paper is always printed with the light tokens. charts.js sets .printing on <html> while
-   printing, so the canvases are redrawn with the light tokens too. */
-@media screen and (prefers-color-scheme: dark) {
-  :root:not(.printing) {
-    --bg: #101317;
-    --surface: #191d23;
-    --surface-2: #20252c;
-    --line: #313843;
-    --line-strong: #737d8b;
-    --text: #e9ecf0;
-    --muted: #a3acb8;
-
-    --accent: #8fb6f5;
-    --accent-hover: #adc9f8;
-    --on-accent: #0b1a33;
-    --hover: rgba(233, 236, 240, 0.08);
-
-    --ok: #8ed8a8;
-    --ok-bg: #15301f;
-    --ok-line: #2a5c3c;
-    --warn: #f1c96a;
-    --warn-bg: #362a08;
-    --warn-line: #6a5312;
-    --bad: #ff9d95;
-    --bad-bg: #3b1614;
-    --bad-line: #7a2c27;
-    --info: #9fc2fb;
-    --info-bg: #14233f;
-    --info-line: #2b4a80;
-
-    --missing-bg: #2a3038;
-    --override-bg: #665008;
-    --negative-bg: #5c1e1a;
-
-    --chart-1: #5a93e1;
-    --chart-2: #d17929;
-    --chart-3: #19ab82;
-    --chart-grid: #313843;
-    --chart-text: #a3acb8;
-  }
-}
+/* МТУ identity, keyed by Mtu.sort. Marks validated as an ordered categorical set (adjacent CVD ΔE ≥ 11.9). */
+.mtu-1{--tint:#d3e9ff;--soft:#acd6ff;--mark:#1a83db;--deep:#004985}  /* Тошкент */
+.mtu-2{--tint:#ffe0cc;--soft:#ffc6a2;--mark:#e6803a;--deep:#803d05}  /* Қўқон */
+.mtu-3{--tint:#c9f1ef;--soft:#96e3e1;--mark:#00a0a1;--deep:#005353}  /* Бухоро */
+.mtu-4{--tint:#fbecbd;--soft:#f5dc8f;--mark:#d3ad1b;--deep:#7a5c00}  /* Қўнғирот */
+.mtu-5{--tint:#e9e2ff;--soft:#d5c8ff;--mark:#7e5acc;--deep:#4f3189}  /* Қарши */
+.mtu-6{--tint:#ffdeed;--soft:#fec0dc;--mark:#d863a0;--deep:#812a5a}  /* Термиз */
 
 /* ---- Base ---------------------------------------------------------------- */
 
-*, *::before, *::after { box-sizing: border-box; }
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:450 15px/1.45 var(--font);
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+h1{font-size:40px;font-weight:750;letter-spacing:-.035em;line-height:1.05}
+h2{font-size:28px;font-weight:750;letter-spacing:-.03em;line-height:1.15}
+h3{font-size:18px;font-weight:650;letter-spacing:-.015em;line-height:1.2}
+a{color:inherit;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-decoration-thickness:1.5px;text-underline-offset:3px}
+a:hover{text-decoration-color:currentColor}
+button,input,select,textarea{font:inherit;color:inherit}
+svg{display:block;flex:none}
+::selection{background:var(--soft)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.tile-night :focus-visible{outline-color:#fff}
 
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ico-sm{width:16px;height:16px}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.wagon{width:100%;height:auto}
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 400 1rem/1.45 var(--font);
-  font-variant-numeric: tabular-nums;
-}
-
-h1, h2, h3, p, ul, ol, figure { margin: 0; }
-h1 { font-size: 1.5rem; line-height: 1.2; font-weight: 700; }
-h2 { font-size: 1.125rem; line-height: 1.3; font-weight: 700; }
-h3 { font-size: 1rem; line-height: 1.3; font-weight: 700; }
-
-a { color: var(--accent); text-underline-offset: 2px; }
-a:hover { color: var(--accent-hover); }
-
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-
-small, .small { font-size: 0.875rem; }
-.muted { color: var(--muted); }
-.nowrap { white-space: nowrap; }
-code, .mono, .secret { font-family: var(--mono); }
-code { padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); font-size: 0.9375em; }
-.secret { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.06em; user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; }
+small,.small{font-size:13.5px}
+.muted{color:var(--ink-3)}
+.nowrap{white-space:nowrap}
+.tnum{font-variant-numeric:tabular-nums}
+.push{margin-left:auto}
+.grow{flex:1 1 0;min-width:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+code,.mono,.secret{font-family:var(--mono)}
+code{padding:1px 6px;border-radius:6px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:.875em;white-space:nowrap}
+.secret{display:inline-block;font-size:20px;font-weight:700;letter-spacing:.06em;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
 
 /* ---- Layout -------------------------------------------------------------- */
 
-.page { max-width: var(--wide); margin: 0 auto; padding: 16px 16px 56px; }
-.narrow, .topbar-in.narrow { max-width: 34rem; }
+.wrap,.page{width:100%;max-width:1320px;margin-inline:auto;padding-inline:var(--side)}
+.page{padding-block:16px 64px}
+.narrow,.is-narrow .wrap,.is-narrow .page{max-width:34rem}
 /* Spacing goes below each child, so a form that starts with {% csrf_token %} has no empty gap on top. */
-.page > *, .stack > * { margin-bottom: var(--gap); }
-.page > :last-child, .stack > :last-child { margin-bottom: 0; }
-.page > h2:not(:first-child), .stack > h2:not(:first-child) { margin-top: 28px; }
+.page > *,.stack > *{margin-bottom:var(--gap)}
+.page > :last-child,.stack > :last-child{margin-bottom:0}
+.page > h2:not(:first-child),.stack > h2:not(:first-child){margin-top:28px}
 
-.cols { display: grid; gap: var(--gap); align-items: start; }
-.cols > * { min-width: 0; }
+.cols{display:grid;gap:var(--gap);align-items:start}
+.cols > *{min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.toolbar > h1,.toolbar > h2,.toolbar > h3,.toolbar > p{align-self:center}
+.toolbar > .field{flex:1 1 9rem}
+.spacer{flex:1 1 0}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 
-.toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.toolbar > h1, .toolbar > h2, .toolbar > h3, .toolbar > p { align-self: center; }
-.toolbar > .field { flex: 1 1 9rem; }
-.spacer { flex: 1 1 0; }
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;margin:6px 0 20px}
+.pagehead .t-sub{margin-top:8px;font-size:15px}
 
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap)}
+.bento > *{grid-column:1/-1;min-width:0}
+.bento > .span-2{grid-column:span 2}
+.bento > .span-3{grid-column:span 3}
+.bento > .span-4{grid-column:span 4}
+.bento > .span-5{grid-column:span 5}
+.bento > .span-6{grid-column:span 6}
+.bento > .span-7{grid-column:span 7}
+.bento > .span-8{grid-column:span 8}
+.bento > .span-9{grid-column:span 9}
+.bento > .span-12{grid-column:1/-1}
+.bento > .row-2{grid-row:span 2}
 
-.pager { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pager > .btn { flex: none; width: 44px; padding: 0; }
-.pager > div { min-width: 0; }
+.back{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px 0 16px;border-radius:999px;
+  background:var(--raise);color:inherit;font-weight:600;text-decoration:none;transition:box-shadow .15s}
+.back:hover{box-shadow:inset 0 0 0 1.5px var(--ink)}
 
-.back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; text-decoration: none; }
-.back::before, .pager > .btn::before, .list > li > a::after {
-  content: "";
-  flex: none;
-  width: 9px;
-  height: 9px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-  transform: rotate(45deg);
-}
-.back::before, .pager > .btn:first-child::before { transform: rotate(-135deg); margin-left: 3px; }
-.pager > .btn:last-child::before { margin-right: 3px; }
+/* Chevrons drawn by CSS: «Орқага», the pager arrows, list rows, <details>. */
+.back::before,.pager > .btn::before,.list > li > a::after,details:not(.menu) > summary::after{
+  content:"";flex:none;width:9px;height:9px;border-top:2px solid currentColor;border-right:2px solid currentColor;
+  transform:rotate(45deg)}
+.back::before,.pager > .btn:first-child::before{transform:rotate(-135deg);margin-left:4px}
+.pager > .btn:last-child::before{margin-right:4px}
 
 /* ---- Top bar (base.html) -------------------------------------------------- */
 
-.topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
-.topbar-in { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; max-width: var(--wide); margin: 0 auto; padding: 0 16px; }
-.brand { display: inline-flex; align-items: center; min-height: 52px; color: var(--text); font-weight: 700; text-decoration: none; white-space: nowrap; }
-.brand:hover { color: var(--text); }
-.account { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: calc(100% - 8.5rem); margin-left: auto; margin-right: -12px; }
-.account-name { overflow: hidden; font-size: 0.9375rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.account form { flex: none; }
+.top{padding:20px 0 6px}
+.top-in{position:relative;display:flex;align-items:center;gap:16px;min-height:52px}
+.brand{display:flex;align-items:center;gap:12px;min-height:44px;font-size:17px;font-weight:700;letter-spacing:-.01em;
+  white-space:nowrap;text-decoration:none}
+.brand-mark{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:14px;background:var(--ink);color:#fff}
+.brand-mark .ico{width:24px;height:24px;stroke-width:1.7}
+.top-panel{display:flex;align-items:center;gap:16px;flex:1;min-width:0}
+.nav{display:flex;align-items:center;gap:2px;margin-left:16px;padding:5px;border-radius:999px;background:var(--surface)}
+.nav a{display:flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;color:var(--ink-2);
+  font-weight:550;text-decoration:none;white-space:nowrap;transition:background-color .15s,color .15s}
+.nav a:hover{background:var(--panel);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--ink);color:#fff}
+.nav-gap{flex:none;align-self:stretch;width:1.5px;margin:8px 6px;background:var(--line)}
+.who{display:flex;align-items:center;gap:10px;margin-left:auto}
+.role{display:flex;align-items:center;gap:10px;min-width:0;font-weight:600;white-space:nowrap}
+.role-av{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--surface)}
+.role-av .ico{width:18px;height:18px}
+.role[class*="mtu-"] .role-av{background:var(--tint);color:var(--deep)}
+.menu{display:none}
+.menu > summary{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--surface);
+  list-style:none;cursor:pointer}
+.menu > summary::-webkit-details-marker{display:none}
+.menu[open] > summary{background:var(--ink);color:#fff}
+/* A station: letter avatar, name, МТУ chip (the phone screen's own header). */
+.ident{display:flex;align-items:center;gap:12px;min-width:0;text-decoration:none}
+.ident > span:last-child{min-width:0}
+.ident b{display:block;font-size:20px;font-weight:750;letter-spacing:-.025em;line-height:1.15;overflow-wrap:anywhere}
+.ident .st-av{width:48px;height:48px;border-radius:16px;font-size:20px}
+.ident .chip{min-height:24px;margin-top:4px;padding:0 9px;font-size:12.5px}
 
-/* On a phone the links wrap to a second row: a sideways-scrolling bar hid «Станциялар» and «Парол» off-screen. */
-.nav { order: 1; flex: 0 0 calc(100% + 32px); display: flex; flex-wrap: wrap; margin: 0 -16px; padding: 0 6px; border-top: 1px solid var(--line); }
-.nav a { flex: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-bottom: 3px solid transparent; border-top: 3px solid transparent; color: var(--muted); font-weight: 600; text-decoration: none; white-space: nowrap; }
-.nav a:hover { color: var(--text); }
-.nav a[aria-current="page"] { border-bottom-color: var(--accent); color: var(--text); }
-.nav a:focus-visible { outline-offset: -3px; }
-.nav-gap { flex: 1 0 12px; }
+/* ---- Tiles --------------------------------------------------------------- */
 
-/* ---- Surfaces ------------------------------------------------------------ */
+.tile{position:relative;display:flex;flex-direction:column;min-width:0;padding:var(--pad);border-radius:var(--r-tile);
+  background:var(--surface);color:inherit;text-decoration:none}
+a.tile{transition:box-shadow .15s}
+a.tile:hover{box-shadow:inset 0 0 0 2px var(--deep)}
+.tile,.card{--raise:var(--panel)}
+.tile,.card,.num-field,details:not(.menu){--field:var(--panel)}
+/* Inputs keep dark text, so on the dark tile they stay white. */
+.tile-night{background:var(--night);color:#fff;--field:#fff;
+  --ink-2:var(--night-ink-2);--ink-3:var(--night-ink-2);--line:rgba(255,255,255,.12);--line-2:rgba(255,255,255,.3);
+  --panel:rgba(255,255,255,.1);--wait-bg:rgba(255,255,255,.12)}
+.tile-mtu{background:var(--tint);
+  --ink-3:var(--deep);--panel:rgba(255,255,255,.72);--wait-bg:rgba(255,255,255,.72);--ring-track:rgba(255,255,255,.8);
+  --btn-bg:rgba(255,255,255,.75);--btn-line:transparent;--hover:#fff}
+.t-head{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.t-title,.card-title{font-size:18px;font-weight:650;letter-spacing:-.015em;line-height:1.2}
+.t-title-lg{font-size:24px;font-weight:750;letter-spacing:-.03em;line-height:1.1}
+.t-body{display:flex;align-items:center;gap:18px}
+.t-sub,.card-sub{color:var(--ink-3);font-size:14px}
+.panel{padding:14px 16px;border-radius:var(--r-panel);background:var(--panel)}
+.empty{padding:28px 20px;border:1.5px dashed var(--line-2);border-radius:var(--r-panel);color:var(--ink-3);
+  font-weight:550;text-align:center}
 
-.card { display: block; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text); }
-.card > * { margin-bottom: 12px; }
-.card > :last-child { margin-bottom: 0; }
-a.card { text-decoration: none; }
-a.card:hover { border-color: var(--line-strong); color: var(--text); }
-a.card:active { background: var(--surface-2); }
-.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
-.card-title { font-size: 1.0625rem; line-height: 1.3; font-weight: 700; }
-.card-sub { color: var(--muted); font-size: 0.875rem; }
+.ibox{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:15px;background:var(--panel)}
+.ibox-lg{width:56px;height:56px;border-radius:18px}
+.ibox-lg .ico{width:24px;height:24px}
+.ibox-round{border-radius:50%}
+.ibox-night{background:var(--night);color:#fff}
+.ibox-alert{background:var(--alert-bg);color:var(--alert)}
+.ibox-mtu{background:var(--tint);color:var(--deep)}
+.go{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:50%;background:var(--raise);
+  color:var(--ink);transition:background-color .15s}
+a.tile:hover .go,a.go:hover{background:#fff}
 
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 12px; }
+/* The previous tile, kept for the pages that still use it. */
+.card{display:block;padding:20px 22px;border-radius:var(--r-tile);background:var(--surface);color:inherit;text-decoration:none}
+.card > *{margin-bottom:14px}
+.card > :last-child{margin-bottom:0}
+a.card{transition:box-shadow .15s}
+a.card:hover{box-shadow:inset 0 0 0 2px var(--ink)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px 12px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:12px}
 
-.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.stat-num { font-size: 2rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
-.stat-num small { color: var(--muted); font-size: 0.6em; font-weight: 600; letter-spacing: 0; }
-.stat-cap { color: var(--muted); font-size: 0.875rem; line-height: 1.3; }
-.stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.stat-row .stat-num { font-size: 1.625rem; }
+/* ---- Numbers ------------------------------------------------------------- */
 
-progress { display: block; width: 100%; height: 6px; border: 0; border-radius: 3px; background: var(--line); accent-color: var(--accent); overflow: hidden; -webkit-appearance: none; appearance: none; }
-progress::-webkit-progress-bar { background: var(--line); }
-progress::-webkit-progress-value { background: var(--accent); }
-progress::-moz-progress-bar { background: var(--accent); }
+.big{font-size:76px;font-weight:800;letter-spacing:-.045em;line-height:.86}
+.big-xl{font-size:132px}
+.big-md{font-size:44px}
+.big-sm{font-size:30px;letter-spacing:-.035em;line-height:1}
+.unit-word{color:var(--ink-3);font-size:15px;font-weight:550;letter-spacing:0}
+.kpi-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
 
-.list { padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); list-style: none; overflow: hidden; }
-.list > li + li { border-top: 1px solid var(--line); }
-.list > li > a, .list > li > div { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 16px; color: var(--text); text-decoration: none; }
-.list > li > a > :first-child, .list > li > div > :first-child { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
-.list > li > a::after { color: var(--muted); }
-.list > li > a:hover { background: var(--hover); color: var(--text); }
-.list > li > a:active { background: var(--surface-2); }
-.list > li > a:focus-visible { outline-offset: -3px; }
+.stat{display:flex;flex-direction:column;gap:6px;min-width:0}
+.stat-num{font-size:34px;font-weight:750;letter-spacing:-.035em;line-height:1}
+.stat-num small{color:var(--ink-3);font-size:.55em;font-weight:650;letter-spacing:-.01em}
+.stat-cap{color:var(--ink-2);font-size:13.5px;line-height:1.25}
+/* Content-sized: three equal columns squeeze a one-word caption («Туширилган») into its neighbour. */
+.stat-row{display:flex;flex-wrap:wrap;gap:8px 18px}
+.stat-row .stat-num{font-size:30px}
+.stat-row .stat-cap{font-size:12.5px;line-height:1.25}
+.stat-row.boxed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat-row.boxed > .stat{justify-content:space-between;gap:8px;padding:12px 12px 11px;border-radius:16px;background:var(--panel)}
+.stat-row.boxed .stat-num{font-size:28px}
+.stat-row.boxed .stat-cap{order:-1}
+.stat.is-missing .stat-num{color:var(--ink-3)}
+.stat.is-negative .stat-num{color:var(--alert)}
 
-.empty { padding: 24px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--muted); text-align: center; }
+/* --p (0–100) draws the arc; the caps round both ends, as an SVG stroke would. */
+.ring{--w:9px;position:relative;display:grid;place-content:center;flex:none;width:88px;height:88px;text-align:center;line-height:1}
+.ring::before,.ring::after{content:"";position:absolute;inset:0;border-radius:50%}
+.ring::before{
+  background:radial-gradient(circle at 50% calc(var(--w) / 2),var(--deep) calc(var(--w) / 2 * min(var(--p,0),1)),transparent 0),
+    conic-gradient(var(--deep) calc(var(--p,0) * 1%),var(--ring-track,var(--line)) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - var(--w)),#000 calc(100% - var(--w) + .5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - var(--w)),#000 calc(100% - var(--w) + .5px))}
+.ring::after{transform:rotate(calc(var(--p,0) * 3.6deg));
+  background:radial-gradient(circle at 50% calc(var(--w) / 2),var(--deep) calc(var(--w) / 2 * min(var(--p,0),1)),transparent 0)}
+.ring b{font-size:28px;font-weight:800;letter-spacing:-.04em}
+.ring span{margin-top:3px;color:var(--deep);font-size:13px;font-weight:600}
+.seal{width:88px;height:88px}
 
-.chart { position: relative; height: 18rem; }
+.dots{display:grid;grid-template-columns:repeat(var(--cols,24),minmax(0,1fr));gap:4px}
+.dots-12{--cols:12;max-width:210px}
+.dots i{display:block;aspect-ratio:1;border-radius:50%;background:var(--mark)}
+/* An open ring at 3:1 or more on every surface (--ink-3 is the --deep of an МТУ tile). */
+.dots i.o{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.tile-night .dots i.o{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.42)}
+.dot-row{display:grid;grid-template-columns:92px minmax(0,1fr) 56px;align-items:center;gap:16px;font-variant-numeric:tabular-nums}
+.dot-row > :first-child{font-size:14.5px;font-weight:600}
+.dot-row > :last-child{color:var(--ink-3);font-size:14.5px;font-weight:650;text-align:right}
+.dot-row b{color:var(--ink);font-weight:700}
+.tile-night .dot-row b,.tile-night .muted b{color:#fff}
+.tile-night{--mark:#e5e7f2}
+
+.share{display:flex;gap:2px;height:12px}
+.share > span{flex:var(--v,1) 1 0;border-radius:2px;background:var(--mark)}
+.share > span:first-child{border-top-left-radius:6px;border-bottom-left-radius:6px}
+.share > span:last-child{border-top-right-radius:6px;border-bottom-right-radius:6px}
+
+progress{display:block;width:100%;height:8px;border:0;border-radius:4px;background:var(--line);overflow:hidden;
+  accent-color:var(--deep);-webkit-appearance:none;appearance:none}
+progress::-webkit-progress-bar{background:var(--line)}
+progress::-webkit-progress-value{border-radius:4px;background:var(--deep)}
+progress::-moz-progress-bar{border-radius:4px;background:var(--deep)}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:0;color:var(--ink-2);font-size:13.5px;list-style:none}
+.legend > li{display:flex;align-items:center;gap:7px}
+.legend b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+.legend-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 28px}
+.tile-night .legend b{color:#fff}
+i.key{flex:none;width:10px;height:10px;border-radius:50%;background:var(--mark)}
+i.key.o{background:transparent;box-shadow:inset 0 0 0 1.5px currentColor}
+.key-ln{flex:none;width:18px;height:3px;border-radius:2px;background:currentColor}
+.swatch{flex:none;width:18px;height:18px;border-radius:6px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
 
 /* ---- Buttons ------------------------------------------------------------- */
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: 600 1rem/1.2 var(--font);
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn:hover { background: var(--surface-2); border-color: var(--text); color: var(--text); }
-.btn:active { background: var(--line); }
-.btn-primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
-.btn-primary:hover, .btn-primary:active { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
-.btn-quiet { border-color: transparent; background: transparent; color: var(--accent); }
-.btn-quiet:hover, .btn-quiet:active { border-color: transparent; background: var(--hover); color: var(--accent-hover); }
-.btn-danger { border-color: var(--bad); color: var(--bad); }
-.btn-danger:hover, .btn-danger:active { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
-.btn-block { display: flex; width: 100%; }
-.btn-sm { min-height: 36px; padding: 4px 12px; font-size: 0.875rem; white-space: nowrap; }
-.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border:0;
+  border-radius:999px;background:var(--btn-bg,transparent);box-shadow:inset 0 0 0 1.5px var(--btn-line,var(--line-2));
+  color:inherit;font:600 15px/1.1 var(--font);text-align:center;text-decoration:none;white-space:nowrap;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:background-color .15s,box-shadow .15s,color .15s,transform .1s}
+.btn:hover{box-shadow:inset 0 0 0 1.5px currentColor}
+.btn:active{transform:translateY(1px)}
+.btn-ink,.btn-primary{background:var(--ink);color:#fff;box-shadow:none}
+.btn-ink:hover,.btn-primary:hover{background:#2b3049;box-shadow:none}
+.btn-white{background:#fff;color:var(--ink);box-shadow:none}
+.btn-white:hover{background:#eceefa;box-shadow:none}
+.btn-tint{background:var(--soft);color:var(--deep);box-shadow:none}
+.btn-tint:hover{background:var(--deep);color:#fff;box-shadow:none}
+.btn-line{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line-2)}
+.btn-quiet{background:transparent;box-shadow:none}
+.btn-quiet:hover{background:var(--panel);box-shadow:none}
+.btn-danger{color:var(--alert);box-shadow:inset 0 0 0 1.5px var(--alert)}
+.btn-danger:hover{background:var(--alert-bg)}
+.btn-sm{min-height:36px;padding:0 14px;font-size:14px}
+.btn-lg{min-height:58px;padding:0 26px;font-size:17px}
+.btn-block{display:flex;width:100%}
+.btn-round{width:48px;min-height:48px;padding:0}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;transform:none}
+.btn[aria-disabled="true"]{pointer-events:none}
+
+/* ---- Chips and counters -------------------------------------------------- */
+
+.chip,.badge-ok,.badge-warn,.badge-bad,.badge-muted{display:inline-flex;align-items:center;gap:6px;min-height:30px;
+  padding:4px 12px;border-radius:15px;font-size:13.5px;font-weight:600;line-height:1.15;vertical-align:middle}
+.chip .ico{width:15px;height:15px;stroke-width:2.4}
+.chip-ok,.badge-ok{background:var(--ok-bg);color:var(--ok)}
+.chip-alert,.badge-bad{background:var(--alert-bg);color:var(--alert)}
+/* Outlined: a yellow fill is Қўнғирот's tint (colour means which МТУ). */
+.chip-warn,.badge-warn{background:transparent;box-shadow:inset 0 0 0 1.5px var(--warn);color:var(--warn)}
+.chip-wait,.badge-muted{background:var(--wait-bg);color:var(--ink-2)}
+.chip-mtu{background:var(--tint);color:var(--deep)}
+.chip-night{background:var(--night);color:#fff}
+.tile-night .chip-wait{color:#fff}
+.tile-mtu .chip-wait{color:var(--ink)}
+.tile-mtu .chip-wait .ico{color:var(--deep)}
+.count{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 9px;border-radius:999px;
+  background:var(--ink);color:#fff;font-size:14px;font-weight:700}
+.count-alert{background:var(--alert)}
+.tile-night .count{background:#fff;color:var(--ink)}
+
+/* ---- Period switcher ----------------------------------------------------- */
+
+.pager{display:flex;align-items:center;gap:8px;min-width:0}
+.pager > .btn{flex:none;width:48px;min-height:48px;padding:0;background:var(--raise);box-shadow:none}
+.pager > .btn:hover{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.pager > div{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;min-width:0;min-height:56px;
+  padding:6px 22px;border-radius:28px;background:var(--raise)}
+.pager > div > .ibox{width:42px;height:42px;margin-left:-15px}
+.pager > div > div{min-width:0}
+.pager > div > h2,.pager > div > h3{flex-basis:100%}
+.pager h2,.pager h3{font-size:16px;font-weight:650;letter-spacing:-.01em;line-height:1.25}
+.pager p{color:var(--ink-3);font-size:13px}
+
+/* ---- Stations ------------------------------------------------------------ */
+
+.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr));gap:12px;padding:0;list-style:none}
+.st{display:flex;align-items:center;gap:10px;min-height:76px;padding:12px 14px 12px 12px;border-radius:22px;
+  background:var(--raise);color:inherit;font-size:16px;font-weight:600;line-height:1.2;text-decoration:none;
+  transition:background-color .15s}
+.st[hidden]{display:none}
+.st:hover{background:var(--hover,var(--tint))}
+.st-av{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:15px;background:var(--tint);
+  color:var(--deep);font-size:18px;font-weight:750}
+.st:hover .st-av{background:var(--soft)}
+.st-name{min-width:0;overflow-wrap:anywhere}
+.st > .ico{width:18px;height:18px;margin-left:auto;color:var(--ink-3)}
 
 /* ---- Forms --------------------------------------------------------------- */
 
-input, select, textarea, button { font: inherit; color: inherit; }
+input[type="text"],input[type="password"],input[type="number"],input[type="date"],input[type="search"],
+input[type="tel"],input[type="file"],input:not([type]),select,textarea{
+  display:block;width:100%;min-height:48px;padding:10px 16px;border:0;border-radius:14px;background-color:var(--field,var(--surface));
+  box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font-size:16px;font-weight:500}
+input:focus,select:focus,textarea:focus{outline:none;background-color:var(--surface);box-shadow:inset 0 0 0 2px var(--ink)}
+input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
+input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="true"]{box-shadow:inset 0 0 0 2px var(--alert)}
+select{padding-right:44px;cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-2) 50%),linear-gradient(135deg,var(--ink-2) 50%,transparent 50%);
+  background-position:calc(100% - 23px) 50%,calc(100% - 17px) 50%;background-size:6px 6px;background-repeat:no-repeat}
+input[type="file"]{padding:6px}
+input::file-selector-button{min-height:36px;margin-right:12px;padding:0 16px;border:0;border-radius:999px;
+  background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line-2);color:var(--ink);font:600 14px var(--font);cursor:pointer}
+input[type="checkbox"],input[type="radio"]{flex:none;width:20px;height:20px;margin:0;accent-color:var(--ink)}
+.search{position:relative}
+.search > .ico{position:absolute;top:50%;left:20px;width:22px;height:22px;color:var(--ink-3);transform:translateY(-50%);pointer-events:none}
+.search > input{min-height:60px;padding:0 22px 0 56px;border-radius:999px;font-size:17px}
 
-input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="search"],
-input[type="tel"], input[type="file"], input:not([type]), select, textarea {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 1rem;
-}
-input[type="file"] { padding: 6px; }
-input::file-selector-button { min-height: 30px; margin-right: 12px; padding: 4px 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface-2); color: var(--text); font: 600 0.875rem var(--font); cursor: pointer; }
-input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; border-color: var(--accent); }
-input::placeholder { color: var(--muted); opacity: 1; }
-input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+/* minmax(0, 1fr): a date input's own minimum width must not push the field wider than its column. */
+.field{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-content:start;min-width:0}
+.field > label{font-size:15px;font-weight:650}
+.field-label{display:block;margin-bottom:14px;font-size:18px;font-weight:650;letter-spacing:-.015em}
+.field-hint,.help{color:var(--ink-3);font-size:13.5px}
+.help{margin:12px 4px 0}
+.field-error,.errorlist{margin:0;padding:0;color:var(--alert);font-size:14px;font-weight:600;list-style:none}
+.field-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.check{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
 
-.field { display: grid; gap: 6px; align-content: start; min-width: 0; }
-.field > label { font-size: 0.9375rem; font-weight: 600; }
-.field-error, .errorlist { margin: 0; padding: 0; color: var(--bad); font-size: 0.875rem; font-weight: 600; list-style: none; }
-.field-hint { color: var(--muted); font-size: 0.875rem; }
-.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+input.num-input{min-height:72px;padding:6px 8px;border-radius:20px;font-size:38px;font-weight:750;letter-spacing:-.03em;
+  line-height:1.1;text-align:center;-moz-appearance:textfield;appearance:textfield}
+/* Lighter than a typed value, so «0000» does not read as a PIN already entered. */
+input.num-input::placeholder{font-weight:500}
+input.num-input::-webkit-outer-spin-button,input.num-input::-webkit-inner-spin-button{margin:0;-webkit-appearance:none}
+.stepper{display:grid;grid-template-columns:60px minmax(0,1fr) 60px;gap:8px}
+.stepper > button{display:grid;place-items:center;height:72px;border:0;border-radius:20px;background:var(--panel);color:var(--ink);cursor:pointer}
+.stepper > button:active{background:var(--line)}
+.stepper > button .ico{width:24px;height:24px;stroke-width:2.4}
+.num-field{padding:16px;border-radius:var(--r-tile);background:var(--raise)}
+.num-field > label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 4px 12px;font-size:17px;font-weight:650}
+.num-field > label small{color:var(--ink-3);font-size:13px;font-weight:500}
+.result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-radius:var(--r-tile);
+  background:var(--tint);--ink-3:var(--deep)}
+.result .t-sub{margin-top:4px;font-weight:550}
+.result .big{font-size:60px}
+.result.is-negative{background:var(--alert-bg);--ink-3:var(--alert)}
+.result.is-negative .big{color:var(--alert)}
 
-input.num-input {
-  min-height: 64px;
-  padding: 6px 8px;
-  border-width: 2px;
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-input.num-input::-webkit-outer-spin-button, input.num-input::-webkit-inner-spin-button { margin: 0; -webkit-appearance: none; }
-input.num-input[aria-invalid="true"] { box-shadow: none; }
-
-.check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-input[type="checkbox"], input[type="radio"] { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
-
-details > summary { padding: 11px 0; color: var(--accent); font-weight: 600; cursor: pointer; }
-details > summary:hover { color: var(--accent-hover); }
-details[open] > summary { margin-bottom: 4px; }
+details:not(.menu){padding:0 18px;border-radius:var(--r-panel);background:var(--raise)}
+details:not(.menu) > summary{display:flex;align-items:center;gap:12px;min-height:56px;margin:0 -18px;padding:0 22px 0 18px;
+  font-weight:600;list-style:none;cursor:pointer}
+details:not(.menu) > summary::-webkit-details-marker{display:none}
+details:not(.menu) > summary::after{margin-left:auto;transform:translateY(-3px) rotate(135deg);transition:transform .2s}
+details[open]:not(.menu) > summary::after{transform:translateY(2px) rotate(-45deg)}
+details[open]:not(.menu){padding-bottom:18px}
 
 /* ---- Messages ------------------------------------------------------------ */
 
-.notice-info, .notice-ok, .notice-warn, .notice-error { padding: 12px 16px; border: 1px solid; border-radius: var(--radius); font-weight: 600; overflow-wrap: anywhere; }
-.notice-info { border-color: var(--info-line); background: var(--info-bg); color: var(--info); }
-.notice-ok { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
-.notice-warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
-.notice-error { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
-[class*="notice-"] > * + * { margin-top: 6px; }
-[class*="notice-"] ul { padding-left: 1.25rem; font-weight: 400; }
-[class*="notice-"] a { color: inherit; }
+.notice-info,.notice-ok,.notice-warn,.notice-error{position:relative;padding:15px 20px 15px 46px;border-radius:var(--r-panel);
+  font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.notice-info::before,.notice-ok::before,.notice-warn::before,.notice-error::before{content:"";position:absolute;top:21px;left:21px;
+  width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 18%,transparent)}
+.notice-info{background:var(--raise);color:var(--ink)}
+.notice-ok{background:var(--ok-bg);color:var(--ok)}
+.notice-warn{background:var(--surface);color:var(--warn);box-shadow:inset 0 0 0 1.5px var(--warn)}
+.notice-error{background:var(--alert-bg);color:var(--alert)}
+[class*="notice-"] > * + *{margin-top:6px}
+[class*="notice-"] ul{padding-left:1.25rem;font-weight:500}
+[class*="notice-"] a{color:inherit;text-decoration:underline}
 
-.badge-ok, .badge-warn, .badge-bad, .badge-muted { display: inline-block; padding: 3px 10px; border: 1px solid; border-radius: 999px; font-size: 0.8125rem; line-height: 1.3; font-weight: 600; white-space: nowrap; vertical-align: middle; }
-.badge-ok { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
-.badge-warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
-.badge-bad { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
-.badge-muted { border-color: var(--line); background: var(--surface-2); color: var(--muted); }
+/* ---- Lists --------------------------------------------------------------- */
+
+.list{display:grid;gap:8px;padding:0;list-style:none}
+.list > li > a,.list > li > div{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 16px 8px 18px;
+  border-radius:var(--r-panel);background:var(--raise);color:inherit;text-decoration:none;transition:background-color .15s}
+.list > li > a > :first-child,.list > li > div > :first-child{flex:1 1 auto;min-width:0;font-weight:600;overflow-wrap:anywhere}
+.list > li > a::after{margin:0 4px 0 2px;color:var(--ink-3)}
+.list > li > a:hover{background:var(--hover,var(--tint))}
+.list > li > a:focus-visible{outline-offset:-3px}
 
 /* ---- Tables -------------------------------------------------------------- */
 
-.table-wrap { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9375rem; }
-.table tr { --row-bg: var(--surface); }
-.table th, .table td { padding: var(--cell-y) var(--cell-x); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--row-bg); text-align: left; vertical-align: middle; }
-.table tr > :last-child { border-right: 0; }
-.table > :last-child > tr:last-child > * { border-bottom: 0; }
-
-.table thead tr { --row-bg: var(--surface-2); }
-.table thead th { padding-top: 8px; padding-bottom: 8px; color: var(--muted); font-size: 0.8125rem; line-height: 1.3; font-weight: 600; }
-.table thead th[colspan] { text-align: center; }
-.table thead th.num { min-width: 5.5rem; }
+.table-wrap{border-radius:22px;background:var(--surface);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;font-variant-numeric:tabular-nums}
+.table tr{--row-bg:var(--surface)}
+.table th,.table td{padding:var(--cell-y) var(--cell-x);border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:var(--row-bg);text-align:left;vertical-align:middle}
+.table tr > :last-child{border-right:0}
+.table > :last-child > tr:last-child > *{border-bottom:0}
+.table thead tr{--row-bg:var(--panel)}
+.table thead th{padding-block:10px;color:var(--ink-3);font-size:12.5px;font-weight:600;line-height:1.3}
+.table thead th[colspan]{text-align:center}
+.table thead th.num{min-width:5.5rem}
 /* break-word, not anywhere: the column grows to the longest word, so «Сортировочная» is not cut mid-word. */
-.table tbody th, .table tfoot th { font-weight: 600; min-width: 8rem; max-width: 46vw; overflow-wrap: break-word; }
-.table th .check { display: block; }
-.table tbody th, .table tfoot th, .table thead th.key { position: sticky; left: 0; z-index: 1; text-align: left; }
-.table .num { text-align: right; }
-.table td.num { font-weight: 600; white-space: nowrap; }
+.table tbody th,.table tfoot th{min-width:8rem;max-width:46vw;font-weight:600;overflow-wrap:break-word}
+.table th .check{display:flex}
+.table tbody th,.table tfoot th,.table thead th.key{position:sticky;left:0;z-index:1;text-align:left}
+.table .num{text-align:right}
+.table td.num{font-weight:600;white-space:nowrap}
+/* A row stays one line tall on a phone: the table scrolls sideways instead. */
+.table .actions{flex-wrap:nowrap}
+.table .chip,.table .badge-ok,.table .badge-warn,.table .badge-bad,.table .badge-muted{white-space:nowrap}
+.table tr.group{--row-bg:var(--tint)}
+.table tr.group th{max-width:none;color:var(--deep);font-size:15px;font-weight:700;letter-spacing:-.01em}
+.table tr.group th > span{position:sticky;left:var(--cell-x);display:inline-block}
+.table tr.total{--row-bg:var(--panel)}
+.table tr.total > *{font-weight:750}
+a.cell{display:block;margin:calc(-1 * var(--cell-y)) calc(-1 * var(--cell-x));padding:var(--cell-y) var(--cell-x);
+  color:inherit;text-decoration:none}
+a.cell:hover,a.cell:focus-visible{outline:0;box-shadow:inset 0 0 0 2px var(--ink)}
 
-.table tr.group { --row-bg: var(--surface-2); }
-.table tr.group th { max-width: none; font-weight: 700; }
-.table tr.group th > span { position: sticky; left: var(--cell-x); display: inline-block; }
-.table tr.total { --row-bg: var(--surface-2); }
-.table tr.total > * { font-weight: 700; }
+.is-missing{color:var(--ink-3)}
+.is-negative{color:var(--alert)}
+.is-carried{font-style:italic}
+.table td.is-missing,.swatch.is-missing{background:var(--wait-bg)}
+/* The flag (a 10px corner, 6:1) is what tells «typed by hand» apart from Қўнғирот's yellow group rows. */
+.table td.is-override,.swatch.is-override{background:linear-gradient(225deg,var(--warn) 7px,transparent 0) var(--surface);
+  box-shadow:inset 0 0 0 2px var(--warn)}
+.table td.is-negative,.swatch.is-negative{background:var(--alert-bg)}
+.table td.is-override.is-negative{background:linear-gradient(225deg,var(--warn) 7px,transparent 0) var(--alert-bg)}
+.table td.is-negative{font-weight:750}
 
-a.cell { display: block; margin: calc(-1 * var(--cell-y)) calc(-1 * var(--cell-x)); padding: var(--cell-y) var(--cell-x); color: inherit; text-decoration: none; }
-a.cell:hover, a.cell:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); color: inherit; outline: 0; }
+/* ---- Charts -------------------------------------------------------------- */
 
-.is-missing { color: var(--muted); }
-.is-negative { color: var(--bad); }
-.is-carried { font-style: italic; }
-.table td.is-missing, .swatch.is-missing { background: var(--missing-bg); }
-.table td.is-override, .swatch.is-override { background: var(--override-bg); }
-.table td.is-negative, .swatch.is-negative { background: var(--negative-bg); }
-.table td.is-negative { font-weight: 700; }
-.stat.is-missing .stat-num { color: var(--muted); }
-.stat.is-negative .stat-num { color: var(--bad); }
-
-.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 0; color: var(--muted); font-size: 0.875rem; list-style: none; }
-.legend > li { display: inline-flex; align-items: center; gap: 8px; }
-.swatch { flex: none; width: 1.25rem; height: 1.25rem; border: 1px solid var(--line-strong); border-radius: 4px; }
+.chart{position:relative;height:18rem}
+.chart > svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.chart polyline{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.series-1{color:var(--chart-1)}
+.series-2{color:var(--chart-2)}
+.series-3{color:var(--chart-3)}
 
 /* ---- PIN sheet ----------------------------------------------------------- */
 
-.pin-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 20px 4px; border-bottom: 2px dashed var(--line-strong); break-inside: avoid; page-break-inside: avoid; }
-.pin-strip > :first-child { flex: 1 1 14rem; min-width: 0; }
-.pin-name { font-size: 1.25rem; line-height: 1.3; font-weight: 700; }
-.pin-url { font-family: var(--mono); font-size: 0.875rem; overflow-wrap: anywhere; }
-.pin-code { font-family: var(--mono); font-size: 2.25rem; line-height: 1.1; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
-.pin-code small { display: block; margin-bottom: 4px; color: var(--muted); font: 600 0.75rem/1 var(--font); letter-spacing: 0.08em; }
+.pin-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;padding:20px 4px;
+  border-bottom:2px dashed var(--line-2);break-inside:avoid;page-break-inside:avoid}
+.pin-strip > :first-child{flex:1 1 14rem;min-width:0}
+.pin-name{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.pin-url{font-family:var(--mono);font-size:13.5px;overflow-wrap:anywhere}
+.pin-code{font-size:36px;font-weight:800;letter-spacing:.05em;line-height:1.1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pin-code small{display:block;margin-bottom:4px;color:var(--ink-3);font-size:12px;font-weight:650;letter-spacing:.08em;line-height:1}
 
-/* ---- Wider screens ------------------------------------------------------- */
+/* ---- Narrower screens ---------------------------------------------------- */
 
-@media (any-pointer: coarse) {
-  .btn-sm { min-height: 44px; }
+@media (min-width:700px){
+  .toolbar > .field{flex:0 1 11rem}
 }
-
-@media (min-width: 700px) {
-  .toolbar > .field { flex: 0 1 11rem; }
+@media (min-width:900px){
+  .cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .table tbody th,.table tfoot th{min-width:12rem}
+  .chart{height:22rem}
 }
+@media (max-width:1240px){
+  .nav a{padding:0 13px}
+}
+/* An МТУ tile (ring and three numbers) needs about 360px: two to a row here; below 1020px .span-4 is half anyway. */
+@media (min-width:1021px) and (max-width:1180px){
+  .bento > .tile-mtu.span-4{grid-column:span 6}
+}
+/* The links go behind the menu button; the panel opens under the bar (no script: <details> keeps the state). */
+@media (max-width:1150px){
+  .menu{display:block;margin-left:auto}
+  .top-panel{display:none}
+  .menu[open] + .top-panel{position:absolute;top:calc(100% + 6px);right:var(--side);z-index:20;display:block;
+    width:min(300px,calc(100% - 2 * var(--side)));padding:8px;border-radius:24px;background:var(--surface);
+    box-shadow:0 18px 40px -12px rgba(27,31,54,.28)}
+  .top-panel .nav{flex-direction:column;align-items:stretch;gap:2px;margin:0;padding:0;border-radius:0;background:none}
+  .top-panel .nav a{min-height:48px;padding:0 14px;border-radius:14px}
+  .top-panel .nav-gap{width:auto;height:1px;margin:6px 8px}
+  .top-panel .who{justify-content:space-between;margin:6px 0 0;padding:12px 4px 4px 8px;border-top:1px solid var(--line)}
+}
+/* After the 1180px rule, so `.bento > .tile-mtu.span-4` cannot win: a narrow column always gets the phone layout. */
+.narrow .bento,.is-narrow .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+.narrow .bento > [class*="span-"],.is-narrow .bento > [class*="span-"]{grid-column:1/-1}
+.narrow .bento > .phone-half,.is-narrow .bento > .phone-half{grid-column:span 1}
+.narrow .bento > .row-2,.is-narrow .bento > .row-2{grid-row:auto}
+@media (max-width:1020px){
+  .bento{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .bento > .span-2,.bento > .span-3,.bento > .span-4,.bento > .span-5{grid-column:span 3}
+  .bento > .span-6,.bento > .span-7,.bento > .span-8,.bento > .span-9{grid-column:1/-1}
+  .bento > .row-2{grid-row:auto}
+}
+@media (max-width:760px){
+  :root{--gap:12px;--pad:20px;--r-tile:24px;--side:16px}
+  h1{font-size:32px}
+  h2{font-size:22px}
+  .top{padding-top:14px}
+  .brand-mark{width:40px;height:40px}
+  .pagehead{align-items:stretch;margin:2px 0 14px}
+  .pager{width:100%}
+  .pager > div{flex:1;padding-right:14px}
+  .pager h2,.pager h3{font-size:15px}
 
-@media (min-width: 900px) {
-  .page { padding: 24px 24px 72px; }
-  .topbar-in { padding: 0 24px; }
-  .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .table tbody th, .table tfoot th { min-width: 12rem; }
-  .chart { height: 22rem; }
-  .nav { order: 0; flex: 1 1 auto; margin: 0; padding: 0; border-top: 0; overflow: visible; }
-  .nav a { min-height: 52px; }
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bento > [class*="span-"]{grid-column:1/-1}
+  .bento > .phone-half{grid-column:span 1}
+
+  .t-title-lg{font-size:22px}
+  .big{font-size:52px}
+  .big-xl{font-size:96px}
+  .big-md{font-size:32px}
+  .big-sm{font-size:24px}
+  .ring,.seal{width:76px;height:76px}
+  .ring b{font-size:22px}
+  .ring span{font-size:12px}
+  .t-head > .chip.push{margin-left:0}
+  .t-body{gap:16px}
+  .stat-row{column-gap:14px}
+  .stat-row .stat-num{font-size:24px}
+  .dot-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px}
+  .dot-row > .dots{grid-column:1/-1;grid-row:2;gap:3px}
+
+  .legend-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
+  .st-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .st{min-height:68px;gap:8px;padding:10px 8px;border-radius:20px;font-size:14px}
+  .st-av{width:36px;height:36px;border-radius:12px;font-size:16px}
+  .st > .ico{display:none}
+
+  .btn-sm{min-height:44px}
+  .stat-num{font-size:30px}
+}
+/* A 360px phone: the ring and the three numbers of an МТУ tile stay on one line. */
+@media (max-width:400px){
+  .t-body{gap:12px}
+  .t-body .ring,.t-body .seal{width:64px;height:64px}
+  .t-body .ring b{font-size:20px}
+  .stat-row{column-gap:10px}
+  .stat-row .stat-cap{font-size:12px}
+}
+@media (any-pointer:coarse){
+  .btn-sm{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important}
 }
 
 /* ---- Print --------------------------------------------------------------- */
 
-@media not print {
-  .print-only { display: none !important; }
+@media not print{
+  .print-only{display:none!important}
 }
-
-@media print {
-  @page { margin: 14mm; }
-  :root { --bg: #fff; --surface: #fff; --surface-2: #fff; --text: #000; --muted: #333; --line: #888; --line-strong: #000; --cell-y: 4px; --cell-x: 6px; }
-  body { font-size: 11pt; }
-  .no-print { display: none !important; }
-  .page, .narrow { max-width: none; padding: 0; }
-  a { color: inherit; text-decoration: none; }
-  .table-wrap { border: 0; overflow: visible; }
+@media print{
+  @page{margin:14mm}
+  :root{--bg:#fff;--surface:#fff;--panel:#fff;--ink:#000;--ink-2:#222;--ink-3:#333;--line:#888;--line-2:#555;
+    --cell-y:4px;--cell-x:6px}
+  body{background:#fff;font-size:11pt}
+  .no-print,.top{display:none!important}
+  .page,.wrap,.narrow,.is-narrow .wrap,.is-narrow .page{max-width:none;padding:0}
+  a{color:inherit;text-decoration:none}
+  .tile,.card{border:1px solid var(--line);break-inside:avoid}
+  /* Browsers drop backgrounds on paper: white text on a dark fill would vanish. */
+  .tile-night{background:#fff;color:#000;--ink-2:#222;--ink-3:#333;--line:#888;--line-2:#555;--panel:#fff;--wait-bg:#fff}
+  .tile-night .dot-row b,.tile-night .legend b,.tile-night .chip-wait{color:#000}
+  .tile-night .dots i.o{box-shadow:inset 0 0 0 1.5px #000}
+  .count,.chip-night,.ibox-night,.btn-ink,.btn-primary{background:none!important;color:#000!important;box-shadow:inset 0 0 0 1px #000}
+  .list,.panel{break-inside:avoid}
+  .table-wrap{border-radius:0;overflow:visible}
   /* Compact enough for the nine-column daily table on an A4 portrait page. */
-  .table { border-top: 1px solid var(--line); border-left: 1px solid var(--line); font-size: 9pt; }
-  .table thead th { padding-top: 4px; padding-bottom: 4px; font-size: 8pt; }
-  .table thead th.num, .table tbody th, .table tfoot th { min-width: 0; }
-  .table tbody th, .table tfoot th { max-width: 9rem; }
-  .table tr > :last-child { border-right: 1px solid var(--line); }
-  .table > :last-child > tr:last-child > * { border-bottom: 1px solid var(--line); }
-  .table th { position: static !important; }
-  .table tfoot { display: table-row-group; } /* the grand «Жами» once, at the end, not at the foot of every page */
-  /* charts.js redraws at beforeprint, still in the screen layout: the box follows the canvas, scaled to the paper. */
-  .chart { height: auto !important; }
-  .chart canvas { max-width: 100%; height: auto !important; }
-  .table td, .swatch { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .card, .list { break-inside: avoid; }
-  .page-break { break-after: page; page-break-after: always; }
+  .table{border-top:1px solid var(--line);border-left:1px solid var(--line);font-size:9pt}
+  .table thead th{padding-block:4px;font-size:8pt}
+  .table thead th.num,.table tbody th,.table tfoot th{min-width:0}
+  .table tbody th,.table tfoot th{max-width:9rem}
+  .table tr > :last-child{border-right:1px solid var(--line)}
+  .table > :last-child > tr:last-child > *{border-bottom:1px solid var(--line)}
+  .table th{position:static!important}
+  .table tfoot{display:table-row-group} /* the grand «Жами» once, at the end, not at the foot of every page */
+  .table td,.table tr.group > *,.swatch,.dots i,i.key,.share > span,.ring::before,.ring::after{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* charts.js redraws at beforeprint, still in the screen layout: the box follows the canvas, scaled to the paper.
+     An inline <svg> chart is absolutely placed, so its box keeps the screen height. */
+  .chart:has(canvas){height:auto!important}
+  .chart canvas{max-width:100%;height:auto!important}
+  .pin-strip{border-bottom-color:#000}
+  .page-break{break-after:page;page-break-after:always}
 }

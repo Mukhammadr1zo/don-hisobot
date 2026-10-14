@@ -1,7 +1,7 @@
 {% extends "hisobot/base.html" %}
 {% comment %}
-PIN entry for one station. The sheet prints the PIN as «1234 5678»: maxlength 9 lets it be typed or pasted
-with the space, which access.station_login strips. The PIN is never echoed back.
+PIN entry for one station: 4 digits as printed on the sheet (access.station_login ignores stray spaces).
+The PIN is never echoed back.
 {% endcomment %}
 {% block title %}{{ station.name }} · {{ block.super }}{% endblock %}
 
@@ -16,7 +16,7 @@ with the space, which access.station_login strips. The PIN is never echoed back.
   {% csrf_token %}
   <div class="field">
     <label for="pin">ПИН</label>
-    <input class="num-input" type="text" id="pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="0000 0000" autofocus>
+    <input class="num-input" type="text" id="pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="0000" autofocus>
   </div>
   <button class="btn btn-primary btn-block">Кириш</button>
 </form>

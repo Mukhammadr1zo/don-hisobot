@@ -12,7 +12,7 @@ from hisobot.balance import MESSAGES
 from hisobot.models import Change, Entry, LoginFailure, Mtu, Station, User
 from hisobot.tests.test_periods import tk
 
-PIN = "12345678"
+PIN = "1234"
 NOW = tk(12, 9, 5)  # the night period of 12.10 ended at 08:00; the day period of 11.10 is still open
 NIGHT, DAY_BEFORE = tk(12, 8), tk(11, 20)  # the two open periods, newest first
 TONIGHT = tk(12, 20)  # not ended at NOW
@@ -75,11 +75,11 @@ class StationFlowTests(TestCase):
 
         pin_page = self.client.get(reverse("station_login", args=[self.fresh.pk]))
         self.assertContains(pin_page, "Хамза")
-        for attribute in ('name="pin"', 'inputmode="numeric"', 'autocomplete="off"', 'maxlength="9"'):
+        for attribute in ('name="pin"', 'inputmode="numeric"', 'autocomplete="off"', 'maxlength="4"'):
             self.assertContains(pin_page, attribute)
 
         # Typed as printed on the PIN sheet.
-        self.assertRedirects(self.login(self.fresh, pin="1234 5678"), reverse("station_home"))
+        self.assertRedirects(self.login(self.fresh, pin="1234"), reverse("station_home"))
 
         page = self.client.get(reverse("station_home"))
         self.assertContains(page, "Топширилмаган", count=2)
@@ -107,7 +107,7 @@ class StationFlowTests(TestCase):
         self.assertRedirects(self.client.get(reverse("home")), reverse("station_home"))
 
     def test_wrong_pin(self):
-        response = self.login(pin="00000000")
+        response = self.login(pin="0000")
 
         self.assertContains(response, "ПИН нотўғри")
         self.assertNotIn("station_id", self.client.session)
@@ -120,6 +120,11 @@ class StationFlowTests(TestCase):
         # A lock that ends on another day names the day as well.
         Station.objects.filter(pk=self.station.pk).update(locked_until=NOW + timedelta(hours=24))
         self.assertContains(self.login(), "13.10.2026 09:05 дан кейин уриниб кўринг")
+        self.assertNotIn("station_id", self.client.session)
+
+    def test_a_station_closed_after_too_many_wrong_pins_is_sent_to_its_mtu(self):
+        Station.objects.filter(pk=self.station.pk).update(fail_streak=15)
+        self.assertContains(self.login(), "кириш ёпилди. МТУга мурожаат қилинг")
         self.assertNotIn("station_id", self.client.session)
 
     def test_a_throttled_address_is_told_to_wait(self):

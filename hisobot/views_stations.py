@@ -171,7 +171,8 @@ def index(request):
     by_mtu = {item: [] for item in ([mtu] if mtu else access.mtus_for(request.user))}
     for station in stations:
         station.pin_state = _pin_state(station)
-        station.locked = station.locked_until is not None and station.locked_until > now
+        station.hard_locked = access.hard_locked(station)
+        station.locked = station.hard_locked or (station.locked_until is not None and station.locked_until > now)
         by_mtu[station.mtu].append(station)
     context = {
         "form": form,
@@ -253,7 +254,8 @@ def edit(request, station_id):
     context = {
         "station": station,
         "pin_state": _pin_state(station),
-        "locked": station.locked_until is not None and station.locked_until > now,
+        "hard_locked": access.hard_locked(station),
+        "locked": access.hard_locked(station) or (station.locked_until is not None and station.locked_until > now),
         "form": form,
         "opening_form": opening_form,
         "history": [(change, _describe(change)) for change in changes],
@@ -299,7 +301,7 @@ def _sheet(request, issued, *, renewed=False):
         {
             "station": station,
             "url": request.build_absolute_uri(reverse("station_login", args=[station.pk])),
-            "pin": access.format_pin(pin),
+            "pin": pin,
         }
         for station, pin in issued
     ]

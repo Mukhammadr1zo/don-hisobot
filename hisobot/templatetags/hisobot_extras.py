@@ -4,6 +4,8 @@
 {{ report_date|d }}        12.10.2026          {{ pe|period_name }}   Тунги давр / Кундузги давр
 {{ station.last_login_at|dt }}  12.10.2026 08:07    {{ pe|slug }}     2026101208 (for {% url %})
 {{ entry.remaining|num }}  the number, or — when there is none
+{{ total|thousands }}      4 716 (no-break space), or —; anything not a number unchanged
+{{ n|percent:m }}          82: whole percent of n / m, rounded down (100 only when all are in), 0 when m is 0
 """
 
 from datetime import datetime
@@ -62,3 +64,20 @@ def slug(pe):
 @register.filter
 def num(value):
     return DASH if value in MISSING else value
+
+
+@register.filter
+def thousands(value):
+    # A plain no-break space: Onest has no glyph for the narrow one (U+202F), which fell back to a 2px system space.
+    if value in MISSING:
+        return DASH
+    try:
+        return f"{value:,}".replace(",", "\N{NO-BREAK SPACE}")
+    except (TypeError, ValueError):  # not a number: printed as it is, as Django's own filters do
+        return value
+
+
+@register.filter
+def percent(n, m):
+    # Rounded down: 107 of 108 is 99, never a premature 100. Drives the ring's --p as well as the printed figure.
+    return 100 * n // m if n not in MISSING and m else 0
