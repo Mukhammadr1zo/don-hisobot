@@ -461,6 +461,16 @@ i.key.o{background:transparent;box-shadow:inset 0 0 0 1.5px currentColor}
   padding:6px 22px;border-radius:28px;background:var(--raise)}
 .pager > div > .ibox{width:42px;height:42px;margin-left:-15px}
 .pager > div > div{min-width:0}
+@media (max-width:760px){
+  .pager > div{flex-wrap:nowrap;column-gap:10px;padding-inline:8px 14px}
+  .pager > div > .ibox{width:36px;height:36px;margin-left:0}
+}
+@media (max-width:400px){
+  .pager h2{font-size:14px;letter-spacing:-.02em}
+  .pager p{font-size:12px}
+}
+/* The line under a chart that gives a day still filling, which the chart leaves out. */
+.trend-note{margin-top:8px;color:var(--ink-3);font-size:12.5px;text-align:right}
 .pager > div > h2,.pager > div > h3{flex-basis:100%}
 .pager h2,.pager h3{font-size:16px;font-weight:650;letter-spacing:-.01em;line-height:1.25}
 .pager p{color:var(--ink-3);font-size:13px}

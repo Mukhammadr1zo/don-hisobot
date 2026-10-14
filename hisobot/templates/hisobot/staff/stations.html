@@ -1,84 +1,190 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
+{% comment %}
+One tinted section per МТУ (<details>: open when it is the only one or a station in it is locked). The search box and
+the Ҳолат filter are the script at the bottom: without it every row shows and they stay hidden. «Станция қўшиш» stays
+closed until opened (or the form has errors), so a name meant for the search box cannot create a station. On a phone
+both tiles go after the roster (pages/admin.css), so the first screen shows stations; a refused add (is-first) keeps
+them first, with the open form and its error. On paper only the roster prints, every section open.
+{% endcomment %}
 {% block title %}Станциялар · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/admin.css' %}">{% endblock %}
 
 {% block content %}
-<div class="toolbar">
-  <h1>Станциялар{% if mtu and mtus %} · {{ mtu.name }} МТУ{% endif %}</h1>
-  <span class="spacer"></span>
-  <div class="actions">
-    <a class="btn" href="{% url 'stations_import' %}">Импорт</a>
-    <button class="btn btn-primary" form="pin-form">ПИН яратиш</button>
+<section class="pagehead">
+  <div>
+    <h1>Станциялар{% if mtu and mtus %} · {{ mtu.name }} МТУ{% endif %}</h1>
+    <p class="t-sub">{% if mtu and not mtus %}{{ mtu.name }} МТУ · {% endif %}{{ counts.total }}&nbsp;станция · {{ counts.active }}&nbsp;фаол{% if counts.off %} · {{ counts.off }}&nbsp;ўчирилган{% endif %}</p>
   </div>
-</div>
-{% if mtus %}
-<form method="get" class="toolbar no-print">
-  <div class="field">
-    <label for="s-mtu">МТУ</label>
-    <select id="s-mtu" name="mtu">
-      <option value="">Ҳаммаси</option>
-      {% for item in mtus %}<option value="{{ item.pk }}"{% if mtu and item.pk == mtu.pk %} selected{% endif %}>{{ item.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <button class="btn">Кўрсатиш</button>
-</form>
-{% endif %}
-{# The checkboxes in the table belong to this form through their form="pin-form" attribute: forms cannot nest. #}
-<form id="pin-form" method="post" action="{{ pin_url }}">{% csrf_token %}</form>
-<p class="muted">«ПИН яратиш» белгиланган станцияларга, ҳеч бири белгиланмаса {% if mtu and mtus %}шу МТУнинг ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларига{% else %}ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларга{% endif %} янги ПИН беради. Ишлатилган ПИН станция саҳифасида янгиланади.</p>
-
-<details{% if form.errors %} open{% endif %}>
-  <summary>Станция қўшиш</summary>
-  <div class="narrow stack">
-    <form method="post" novalidate class="stack">
-      {% csrf_token %}
-      {% if request.user.is_boshqarma %}{# an MTU user's form has no МТУ field: its own MTU is forced #}
-      <div class="field">
-        <label for="{{ form.mtu.id_for_label }}">{{ form.mtu.label }}</label>
-        {{ form.mtu }}
-        {{ form.mtu.errors }}
-      </div>
-      {% endif %}
-      <div class="field">
-        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
-        {{ form.name }}
-        {{ form.name.errors }}
-      </div>
-      <div class="actions"><button class="btn btn-primary">Сақлаш</button></div>
+  <div class="actions no-print">
+    {% if mtus %}
+    <form method="get" class="mtu-pick">
+      <label class="sr" for="s-mtu">МТУ</label>
+      <select id="s-mtu" name="mtu">
+        <option value="">Барча МТУ</option>
+        {% for item in mtus %}<option value="{{ item.pk }}"{% if mtu and item.pk == mtu.pk %} selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn">Кўрсатиш</button>
     </form>
+    {% endif %}
+    <a class="btn" href="{% url 'stations_import' %}" aria-label="Импорт"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg><span>Импорт</span></a>
   </div>
-</details>
+</section>
 
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th class="key">Станция</th>
-        <th>Ҳолат</th>
-        <th>ПИН</th>
-        <th>Охирги кириш</th>
-        <th>Блок</th>
-        <th>Амаллар</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for mtu, stations in groups %}
-      <tr class="group"><th colspan="6"><span>{{ mtu.name }} МТУ</span></th></tr>
-      {% for station in stations %}
-      <tr{% if not station.is_active %} class="muted"{% endif %}>
-        <th scope="row"><label class="check"><input type="checkbox" name="station" value="{{ station.pk }}" form="pin-form"{% if not station.is_active or station.pin_state == 'used' %} disabled{% endif %}> {{ station.name }}</label></th>
-        <td>{% if station.is_active %}<span class="badge-ok">Фаол</span>{% else %}<span class="badge-muted">Ўчирилган</span>{% endif %}</td>
-        <td class="nowrap">{% if station.pin_state == 'used' %}<span class="badge-ok">Ишлатилган</span>{% elif station.pin_state == 'unused' %}<span class="badge-warn">Берилган, ишлатилмаган</span>{% else %}<span class="badge-muted">Берилмаган</span>{% endif %}</td>
-        <td class="nowrap">{{ station.last_login_at|dt }}</td>
-        <td>{% if station.locked %}<div class="actions"><span class="badge-bad">{% if station.hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span><form method="post" action="{% url 'station_unlock' station.pk %}{{ query }}">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form></div>{% endif %}</td>
-        <td><a class="btn btn-sm" href="{% url 'station_edit' station.pk %}">Тузатиш</a></td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="6" class="muted">Станция йўқ. Уларни импорт қилинг ёки биттадан қўшинг.</td></tr>
-      {% endfor %}
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="st-flow">
+  <div class="bento st-top no-print{% if form.errors %} is-first{% endif %}">
+    <section class="tile span-7 add-tile" aria-labelledby="add-title">
+      <details{% if form.errors %} open{% endif %}>
+        <summary>
+          <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span>
+          <h2 class="t-title" id="add-title">Станция қўшиш</h2>
+          <span class="t-sub">Рўйхат охирига қўшилади</span>
+          <span class="go" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></span>
+        </summary>
+        <form method="post" novalidate class="add-form">
+          {% csrf_token %}
+          {% if request.user.is_boshqarma %}{# an MTU user's form has no МТУ field: its own MTU is forced #}
+          <div class="field">
+            <label for="{{ form.mtu.id_for_label }}">{{ form.mtu.label }}</label>
+            {{ form.mtu }}
+            {{ form.mtu.errors }}
+          </div>
+          {% endif %}
+          <div class="field">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+          </div>
+          <button class="btn btn-ink">Сақлаш</button>
+        </form>
+      </details>
+      <p class="t-sub add-more">Кўп станцияни Excel файлдан <a href="{% url 'stations_import' %}">импорт қилинг</a>.</p>
+    </section>
+    <section class="tile span-5 stack" aria-labelledby="pin-title">
+      <div class="t-head">
+        <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-print"/></svg></span>
+        <h2 class="t-title" id="pin-title">ПИН варақ</h2>
+      </div>
+      <p class="t-sub">«ПИН яратиш» белгиланган станцияларга, ҳеч бири белгиланмаса {% if mtu and mtus %}шу МТУнинг ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларига{% else %}ПИНи берилмаган ёки ишлатилмаган барча фаол станцияларга{% endif %} янги ПИН беради. Ишлатилган ПИН станция саҳифасида янгиланади.</p>
+    </section>
+  </div>
+
+  <div class="rbar no-print">
+    <div class="rbar-find" id="find" hidden>
+      <div class="search">
+        <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+        <input type="search" id="qidir" placeholder="Станцияни қидириш" aria-label="Станцияни қидириш" autocomplete="off">
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Ҳолат">
+        <label><input type="radio" name="holat" value="" checked><span>Ҳаммаси <b>{{ counts.total }}</b></span></label>
+        <label><input type="radio" name="holat" value="1"><span>Фаол <b>{{ counts.active }}</b></span></label>
+        <label><input type="radio" name="holat" value="0"><span>Ўчирилган <b>{{ counts.off }}</b></span></label>
+      </div>
+    </div>
+    <div class="rbar-go">
+      <span class="rbar-hint" id="belgilang" hidden>Станцияни белгиланг</span>
+      {# The count is how many stations get a PIN: the ticked ones, or with none ticked counts.renew (the script). #}
+      <button class="btn btn-ink rbar-pin" form="pin-form">ПИН яратиш<span class="count" hidden><span id="tanlandi">{{ counts.renew }}</span><span class="sr"> станцияга</span></span></button>
+    </div>
+  </div>
+
+  <div class="roster">
+    {% for group in groups %}
+    <details class="mtu-sec tile-mtu mtu-{{ group.mtu.sort }}"{% if group.open %} open{% endif %}>
+      <summary>
+        <h2 class="t-title-lg">{{ group.mtu.name }}</h2>
+        <span class="t-sub">{{ group.stations|length }} станция</span>
+        <span class="sec-chips">
+          <span class="chip chip-wait">{{ group.active }} фаол</span>
+          {% if group.off %}<span class="chip chip-wait">{{ group.off }} ўчирилган</span>{% endif %}
+          {% if group.nopin %}<span class="chip chip-wait">{{ group.nopin }} ПИН берилмаган</span>{% endif %}
+          {% if group.locked %}<span class="chip chip-alert"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>{{ group.locked }} блокланган</span>{% endif %}
+        </span>
+        <span class="go no-print" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></span>
+      </summary>
+      {% if group.stations %}
+      <div class="srow srow-head" aria-hidden="true"><span>Станция</span><span>Ҳолат</span><span>ПИН</span><span>Охирги кириш</span></div>
+      <ul class="srows">
+        {% for station in group.stations %}
+        <li class="srow{% if not station.is_active %} is-off{% endif %}" data-on="{{ station.is_active|yesno:'1,0' }}">
+          <label class="check c-name"><input type="checkbox" name="station" value="{{ station.pk }}" form="pin-form"{% if not station.is_active or station.pin_state == 'used' %} disabled{% endif %}> <span>{{ station.name }}</span></label>
+          <span class="c-meta">
+            <span><span class="sr">Ҳолат</span>{% if station.is_active %}<span class="chip chip-ok">Фаол</span>{% else %}<span class="chip chip-wait">Ўчирилган</span>{% endif %}</span>
+            <span><span class="sr">ПИН</span>{% if station.pin_state == 'used' %}<span class="chip chip-ok">Ишлатилган</span>{% elif station.pin_state == 'unused' %}<span class="chip chip-warn">Берилган, ишлатилмаган</span>{% else %}<span class="chip chip-wait">Берилмаган</span>{% endif %}</span>
+            <span class="c-last tnum{% if not station.last_login_at %} is-none{% endif %}"><span class="sr">Охирги кириш</span>{{ station.last_login_at|dt }}</span>
+          </span>
+          <a class="btn btn-sm btn-tint c-act no-print" href="{% url 'station_edit' station.pk %}" aria-label="{{ station.name }}: Тузатиш">Тузатиш</a>
+          {% if station.locked %}
+          <div class="srow-lock">
+            <span class="chip chip-alert"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>{% if station.hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span>
+            <form method="post" action="{% url 'station_unlock' station.pk %}{{ query }}" class="no-print">{% csrf_token %}<button class="btn btn-sm">Блокдан чиқариш</button></form>
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">Станция йўқ. Уларни импорт қилинг ёки биттадан қўшинг.</p>
+      {% endif %}
+    </details>
+    {% endfor %}
+    <p class="empty" id="topilmadi" hidden>Топилмади</p>
+  </div>
 </div>
+{# The checkboxes in the rows belong to this form through their form="pin-form" attribute: forms cannot nest. #}
+<form id="pin-form" method="post" action="{{ pin_url }}">{% csrf_token %}</form>
+
+<script>
+(function () {
+  var find = document.getElementById("find"), box = document.getElementById("qidir");
+  var none = document.getElementById("topilmadi"), badge = document.getElementById("tanlandi");
+  var pin = document.querySelector(".rbar-pin"), hint = document.getElementById("belgilang");
+  var sections = document.querySelectorAll(".mtu-sec"), renew = badge.textContent, on = false;
+  // As views_public._fold: у к г х е also find ў қ ғ ҳ ё (a Russian keyboard has none of them).
+  function fold(text) {
+    return text.toLocaleLowerCase().replace(/[ўқғҳё]/g, function (c) { return "укгхе".charAt("ўқғҳё".indexOf(c)); });
+  }
+  function filter() {
+    var query = fold(box.value.trim()), want = find.querySelector("input:checked").value, shown = 0;
+    on = query !== "" || want !== "";
+    sections.forEach(function (section) {
+      var rows = section.querySelectorAll(".srow[data-on]"), left = 0;
+      rows.forEach(function (row) {
+        row.hidden = (want !== "" && row.dataset.on !== want) || fold(row.querySelector(".c-name").textContent).indexOf(query) === -1;
+        left += row.hidden ? 0 : 1;
+      });
+      section.hidden = on && !left;
+      if (on && left) section.open = true;
+      section.querySelector("summary > .t-sub").textContent = (on ? left + " / " : "") + rows.length + " станция";
+      shown += left;
+    });
+    none.hidden = !on || shown > 0;
+    count();
+  }
+  // With nothing ticked the server renews every unused PIN in scope, not the rows the filter shows: so ask for ticks.
+  // The number shows only on a button that works and has something to renew.
+  function count() {
+    var ticked = document.querySelectorAll('input[name="station"]:checked').length;
+    badge.textContent = ticked || renew;
+    pin.disabled = on && !ticked;
+    hint.hidden = !pin.disabled;
+    badge.parentNode.hidden = pin.disabled || !(ticked || +renew);
+    // Only while disabled: a description is read even from a hidden element.
+    if (pin.disabled) pin.setAttribute("aria-describedby", "belgilang"); else pin.removeAttribute("aria-describedby");
+  }
+  // On paper every section is open, as the old table printed every station; the screen gets its own state back.
+  var shut = [];
+  window.addEventListener("beforeprint", function () {
+    shut = Array.prototype.filter.call(sections, function (section) { return !section.open; });
+    shut.forEach(function (section) { section.open = true; });
+  });
+  window.addEventListener("afterprint", function () { shut.forEach(function (section) { section.open = false; }); });
+  find.hidden = false;
+  box.addEventListener("input", filter);
+  find.addEventListener("change", filter);
+  document.addEventListener("change", function (event) { if (event.target.name === "station") count(); });
+  filter();  // a page restored by «Орқага» or a reload keeps its ticks, its search and its Ҳолат choice
+})();
+</script>
 {% endblock %}

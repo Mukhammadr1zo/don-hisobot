@@ -1,10 +1,19 @@
 {% extends "hisobot/base.html" %}
-{% comment %}Django's CSRF failure page (CSRF_FAILURE_TEMPLATE_NAME): usually a form left open across a sign-in or sign-out.{% endcomment %}
+{% load static %}
+{% comment %}Django's CSRF failure page (CSRF_FAILURE_TEMPLATE_NAME): usually a form left open across a sign-in or sign-out.
+The same tile as the standalone 404, 405 and 500 pages; full width for every principal, as they are.{% endcomment %}
 {% block title %}Саҳифа эскирган · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/admin.css' %}">{% endblock %}
+{% block layout %}{% endblock %}
 
 {% block content %}
-<h1>Саҳифа эскирган</h1>
-<p>Форма юборилмади: у очилгандан кейин тизимга кириш ёки чиқиш бўлган. Маълумот сақланмади.</p>
-<p>Орқага қайтинг, саҳифани янгиланг ва қайта юборинг.</p>
-<div class="actions"><a class="btn btn-primary" href="{% url 'home' %}">Бош саҳифа</a></div>
+<section class="tile err">
+  <p class="err-code" aria-hidden="true">403</p>
+  <div class="stack">
+    <h1>Саҳифа эскирган</h1>
+    <p>Форма юборилмади: у очилгандан кейин тизимга кириш ёки чиқиш бўлган. Маълумот сақланмади.</p>
+    <p>Орқага қайтинг, саҳифани янгиланг ва қайта юборинг.</p>
+    <div class="actions"><a class="btn btn-primary" href="{% url 'home' %}">Бош саҳифа</a></div>
+  </div>
+</section>
 {% endblock %}

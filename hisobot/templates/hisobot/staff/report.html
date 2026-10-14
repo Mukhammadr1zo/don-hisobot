@@ -1,28 +1,35 @@
 {% extends "hisobot/base.html" %}
 {% load static hisobot_extras %}
 {% comment %}
-«Ҳисобот» (views_reports.report). The tables carry every number. charts.js draws the two charts from #chart-data
-when Chart.js has loaded; without it the chart boxes keep their fallback text.
+«Ҳисобот» (views_reports.report), a bento page: range toolbar, the range in numbers (submission hero, Туширилган,
+Кириб келган, Қолган at the range end), the daily chart and the МТУ (or station) comparison, then the tables.
+The tables carry every number. charts.js draws the two charts from #chart-data when Chart.js has loaded; without
+it the chart boxes keep their fallback text. Page CSS: static/hisobot/pages/report.css.
+`grouped` (more than one МТУ, .r-grouped on the bento): МТУ rows in the hero, МТУ segment bars, the МТУ table and
+tinted group rows; otherwise the hero has one dot per station.
 {% endcomment %}
 {% block title %}Ҳисобот · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/report.css' %}">{% endblock %}
 
 {% block content %}
-<div class="toolbar">
+<section class="pagehead">
   <div>
     <h1>Ҳисобот</h1>
-    <p class="muted">{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %} · {{ d_from|d }} – {{ d_to|d }}</p>
+    <p class="t-sub">{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %} · {{ d_from|d }} – {{ d_to|d }}</p>
   </div>
-  <span class="spacer"></span>
-  <div class="no-print">
-    <a class="btn" href="{{ export_url }}">Excel юклаб олиш</a>
-    <p class="muted small">{{ d_to|d }} кунлик жадвали</p>
+  <div class="r-export no-print">
+    <a class="btn" href="{{ export_url }}"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Excel юклаб олиш</a>
+    <p class="t-sub">{{ d_to|d }} кунлик жадвали</p>
   </div>
-</div>
+</section>
 
-<form method="get" class="toolbar no-print" novalidate>
-  <div class="actions" role="group" aria-label="Тайёр оралиқлар">
-    {% for preset in presets %}<a class="btn{% if preset.current %} btn-primary{% endif %}" href="{{ preset.url }}"{% if preset.current %} aria-current="true"{% endif %}>{{ preset.name }}</a>
-    {% endfor %}
+<form method="get" class="toolbar r-range no-print" novalidate>
+  <div class="field">
+    <span id="r-presets-l">Тайёр оралиқ</span>
+    <div class="r-presets" role="group" aria-labelledby="r-presets-l">
+      {% for preset in presets %}<a href="{{ preset.url }}"{% if preset.current %} aria-current="true"{% endif %}>{{ preset.name }}</a>
+      {% endfor %}
+    </div>
   </div>
   <div class="field">
     <label for="r-from">Бошланиш санаси</label>
@@ -33,7 +40,7 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
     <input type="date" id="r-to" name="to" value="{{ d_to|date:'Y-m-d' }}" max="{{ last|date:'Y-m-d' }}">
   </div>
   {% if mtus %}
-  <div class="field">
+  <div class="field r-mtu">
     <label for="r-mtu">МТУ</label>
     <select id="r-mtu" name="mtu">
       <option value="">Ҳаммаси</option>
@@ -42,140 +49,227 @@ when Chart.js has loaded; without it the chart boxes keep their fallback text.
     </select>
   </div>
   {% endif %}
-  <button class="btn">Кўрсатиш</button>
+  <button class="btn btn-ink">Кўрсатиш</button>
 </form>
 
 {% if notice %}<div class="notice-warn" role="status">{{ notice }}</div>{% endif %}
-<p>Оралиқда киритилмаган станция-даврлар: {{ missing }}. Йиғиндиларга фақат киритилган даврлар қўшилади.</p>
 
-<div class="cols">
-  <section class="card">
-    <h2 class="card-title">Кунлик туширилган, кириб келган, қолган</h2>
-    <div class="chart" id="chart-daily"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
-    <ul class="legend">
-      <li><span class="swatch" style="background: var(--chart-1); height: 3px; border: 0"></span>Туширилган</li>
-      <li><span class="swatch" style="background: var(--chart-2); height: 3px; border: 0"></span>Кириб келган</li>
-      <li><span class="swatch" style="background: var(--chart-3); height: 3px; border: 0"></span>Қолган (кун охирида, 20:00)</li>
-    </ul>
-    <details>
-      <summary>Кунлар бўйича жадвал</summary>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="key">Сана</th>
-              <th class="num">Туширилган</th>
-              <th class="num">Кириб келган</th>
-              <th class="num">Қолган, 20:00</th>
-              <th class="num">Киритилмаган</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for label, unloaded, arrived, remaining, day_missing in days %}
-            <tr>
-              <th scope="row">{{ label }}</th>
-              <td class="num{% if unloaded is None and day_missing %} is-missing{% endif %}">{{ unloaded|num }}</td>
-              <td class="num{% if arrived is None and day_missing %} is-missing{% endif %}">{{ arrived|num }}</td>
-              <td class="num{% if remaining is None and day_missing %} is-missing{% elif remaining < 0 %} is-negative{% endif %}">{{ remaining|num }}</td>
-              <td class="num">{{ day_missing|num }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </details>
-  </section>
-  <section class="card">
-    <h2 class="card-title">{% if by == "mtu" %}МТУ бўйича{% else %}Станциялар бўйича{% endif %} туширилган ва кириб келган</h2>
-    <div class="chart" id="chart-compare"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
-    <ul class="legend">
-      <li><span class="swatch" style="background: var(--chart-1)"></span>Туширилган</li>
-      <li><span class="swatch" style="background: var(--chart-2)"></span>Кириб келган</li>
-    </ul>
-  </section>
-</div>
-
-{% if grouped %}
-<h2>МТУ бўйича</h2>
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th class="key">МТУ</th>
-        <th class="num">Туширилган</th>
-        <th class="num">Кириб келган</th>
-        <th class="num">Қолган, {{ d_to|d }} 20:00</th>
-        <th class="num">Киритилган / кутилган</th>
-        <th class="num">Қўлда ўзгартирилган</th>
-      </tr>
-    </thead>
-    <tbody>
+<div class="bento{% if grouped %} r-grouped{% endif %}">
+  <article class="tile tile-night span-6 row-2 r-sub" aria-labelledby="r-sub-t">
+    <div class="t-head">
+      <h2 class="t-title" id="r-sub-t">Киритилган / кутилган</h2>
+      <span class="t-sub">станция-даврлар</span>
+    </div>
+    <div class="kpi-row">
+      <span class="big big-xl{% if total.submitted > 999 %} is-4{% endif %}">{{ total.submitted|thousands }}</span>
+      <span class="big big-md muted">/ {{ total.expected|thousands }}</span>
+      <span class="big big-md push">{% if total.expected %}{{ total.submitted|percent:total.expected }}%{% else %}—{% endif %}</span>
+    </div>
+    <p class="muted">Оралиқда киритилмаган станция-даврлар: {{ missing|thousands }}. Йиғиндиларга фақат киритилган даврлар қўшилади.</p>
+    {% if grouped %}
+    <div class="r-meters" role="list" aria-label="МТУ бўйича киритилган / кутилган">
       {% for row in mtu_rows %}
-      <tr>
-        <th scope="row">{{ row.mtu.name }}</th>
-        <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
-        <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|num }}</td>
-        <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
-        <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
-        <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
-      </tr>
+      <div class="dot-row mtu-{{ row.mtu.sort }}" role="listitem">
+        <span>{{ row.mtu.name }}</span>
+        <span class="r-meter" style="--p:{{ row.submitted|percent:row.expected }}" aria-hidden="true"></span>
+        <span><b>{{ row.submitted|thousands }}</b>/{{ row.expected|thousands }}</span>
+      </div>
       {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr class="total">
-        <th scope="row">Жами</th>
-        <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
-        <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|num }}</td>
-        <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
-        <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
-        <td class="num">{{ total.overrides }}</td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
-{% endif %}
-
-<h2>Станциялар бўйича</h2>
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th class="key">Станция</th>
-        <th class="num">Туширилган</th>
-        <th class="num">Кириб келган</th>
-        <th class="num">Қолган, {{ d_to|d }} 20:00</th>
-        <th class="num">Киритилган / кутилган</th>
-        <th class="num">Қўлда ўзгартирилган</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in station_rows %}
-      {% if grouped %}{% ifchanged row.mtu.id %}<tr class="group"><th colspan="6"><span>{{ row.mtu.name }} МТУ</span></th></tr>{% endifchanged %}{% endif %}
-      <tr>
-        <th scope="row">{{ row.station.name }}</th>
-        <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|num }}</td>
-        <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|num }}</td>
-        <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|num }}</td>
-        <td class="num">{{ row.submitted }} / {{ row.expected }}</td>
-        <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="6"><p class="empty">Станциялар йўқ</p></td></tr>
-      {% endfor %}
-    </tbody>
-    {% if station_rows %}
-    <tfoot>
-      <tr class="total">
-        <th scope="row">Жами</th>
-        <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|num }}</td>
-        <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|num }}</td>
-        <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|num }}</td>
-        <td class="num">{{ total.submitted }} / {{ total.expected }}</td>
-        <td class="num">{{ total.overrides }}</td>
-      </tr>
-    </tfoot>
+    </div>
+    {% elif total.expected %}
+    {% comment %}One dot per station that expects a period in the range, filled by its share entered: percent rounds
+    down, so only a complete station is a full dot. The table names them.{% endcomment %}
+    <ul class="legend{% if mtu %} mtu-{{ mtu.sort }}{% endif %}" aria-hidden="true"><li><i class="key"></i>ҳамма даврлар киритилган</li><li><i class="key half"></i>қисман киритилган</li></ul>
+    <span class="dots{% if mtu %} mtu-{{ mtu.sort }}{% endif %}" aria-hidden="true">{% for row in station_rows %}{% if row.expected %}<i style="--p:{{ row.submitted|percent:row.expected }}"></i>{% endif %}{% endfor %}</span>
     {% endif %}
-  </table>
+  </article>
+
+  <article class="tile span-3 phone-half r-kpi">
+    <h2 class="t-title">Туширилган</h2>
+    <div class="kpi-row"><span class="big{% if total.unloaded is None %} is-missing{% elif total.unloaded > 9999 %} is-5{% elif total.unloaded > 999 %} is-4{% endif %}">{{ total.unloaded|thousands }}</span>{% if total.unloaded is not None %}<span class="unit-word">вагон</span>{% endif %}</div>
+    {% if grouped and total.unloaded %}
+    <div class="share" role="img" aria-label="МТУ бўйича:{% for row in mtu_rows %} {{ row.mtu.name }} {{ row.unloaded|num }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {% for row in mtu_rows %}{% if row.unloaded > 0 %}<span class="mtu-{{ row.mtu.sort }}" style="--v:{{ row.unloaded }}" title="{{ row.mtu.name }} · {{ row.unloaded|thousands }}"></span>{% endif %}{% endfor %}
+    </div>
+    <p class="t-sub">МТУ бўйича</p>
+    {% endif %}
+  </article>
+
+  <article class="tile span-3 phone-half r-kpi">
+    <h2 class="t-title">Кириб келган</h2>
+    <div class="kpi-row"><span class="big{% if total.arrived is None %} is-missing{% elif total.arrived > 9999 %} is-5{% elif total.arrived > 999 %} is-4{% endif %}">{{ total.arrived|thousands }}</span>{% if total.arrived is not None %}<span class="unit-word">вагон</span>{% endif %}</div>
+    {% if grouped and total.arrived %}
+    <div class="share" role="img" aria-label="МТУ бўйича:{% for row in mtu_rows %} {{ row.mtu.name }} {{ row.arrived|num }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {% for row in mtu_rows %}{% if row.arrived > 0 %}<span class="mtu-{{ row.mtu.sort }}" style="--v:{{ row.arrived }}" title="{{ row.mtu.name }} · {{ row.arrived|thousands }}"></span>{% endif %}{% endfor %}
+    </div>
+    <p class="t-sub">МТУ бўйича</p>
+    {% endif %}
+  </article>
+
+  <article class="tile span-6 r-kpi r-qol">
+    <div class="t-head">
+      <h2 class="t-title">Қолган</h2>
+      <span class="t-sub">{{ d_to|d }} 20:00 ҳолатига</span>
+    </div>
+    <div class="kpi-row"><span class="big{% if total.remaining_end is None %} is-missing{% else %}{% if total.remaining_end > 9999 %} is-5{% elif total.remaining_end > 999 %} is-4{% endif %}{% if total.remaining_end < 0 %} is-negative{% endif %}{% endif %}">{{ total.remaining_end|thousands }}</span>{% if total.remaining_end is not None %}<span class="unit-word">вагон</span>{% endif %}</div>
+    {% if grouped %}{% if total.remaining_end is not None %}
+    {# Shares of a positive whole only: beside a negative total the bar would show the positive МТУ as all of it. #}
+    {% if total.remaining_end > 0 %}<div class="share" role="img" aria-label="МТУ бўйича:{% for row in mtu_rows %} {{ row.mtu.name }} {{ row.remaining_end|num }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {% for row in mtu_rows %}{% if row.remaining_end > 0 %}<span class="mtu-{{ row.mtu.sort }}" style="--v:{{ row.remaining_end }}" title="{{ row.mtu.name }} · {{ row.remaining_end|thousands }}"></span>{% endif %}{% endfor %}
+    </div>{% endif %}
+    <ul class="legend legend-grid">
+      {% for row in mtu_rows %}<li class="mtu-{{ row.mtu.sort }}"><i class="key"></i>{{ row.mtu.name }} <b{% if row.remaining_end < 0 %} class="is-negative"{% endif %}>{{ row.remaining_end|thousands }}</b></li>{% endfor %}
+    </ul>
+    {% endif %}{% else %}
+    <p class="t-sub">Юк туширишда қолган вагонлар сони</p>
+    {% endif %}
+  </article>
+
+  <section class="tile {% if by == 'mtu' %}span-7{% else %}span-12{% endif %} r-chart" aria-labelledby="r-daily-t">
+    <div class="t-head">
+      <h2 class="t-title" id="r-daily-t">Кунлик туширилган, кириб келган, қолган</h2>
+      <ul class="legend push">
+        <li><i class="key-ln series-1"></i>Туширилган</li>
+        <li><i class="key-ln series-2"></i>Кириб келган</li>
+        <li><i class="key-ln series-3 is-dashed"></i>Қолган, 20:00</li>
+      </ul>
+    </div>
+    <div class="chart" id="chart-daily"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
+    {% if partial_days %}<p class="trend-note">Ҳали тўлиқ эмас, графикда йўқ:{% for day in partial_days %} {{ day.label }}: туширилган {{ day.unloaded|thousands }}, кириб келган {{ day.arrived|thousands }}, киритилмаган {{ day.missing }}{% if not forloop.last %};{% endif %}{% endfor %}</p>{% endif %}
+  </section>
+
+  <section class="tile {% if by == 'mtu' %}span-5{% else %}span-12{% endif %} r-chart{% if mtu %} mtu-{{ mtu.sort }}{% endif %}" aria-labelledby="r-compare-t">
+    <div class="t-head">
+      <h2 class="t-title" id="r-compare-t">{% if by == "mtu" %}МТУ бўйича{% else %}Станциялар бўйича{% endif %} туширилган ва кириб келган</h2>
+      <ul class="legend push">
+        <li><i class="r-key"></i>Туширилган</li>
+        <li><i class="r-key is-light"></i>Кириб келган</li>
+      </ul>
+    </div>
+    <div class="chart" id="chart-compare"><p class="empty">График чизилмади. Рақамлар жадвалларда.</p></div>
+  </section>
+
+  {# Its own item, not in the chart tile: opened there, it stretched the comparison beside it. #}
+  <details>
+    <summary>Кунлар бўйича жадвал</summary>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="key">Сана</th>
+            <th class="num">Туширилган</th>
+            <th class="num">Кириб келган</th>
+            <th class="num">Қолган, 20:00</th>
+            <th class="num">Киритилмаган</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for label, unloaded, arrived, remaining, day_missing in days %}
+          <tr>
+            <th scope="row">{{ label }}</th>
+            <td class="num{% if unloaded is None and day_missing %} is-missing{% endif %}">{{ unloaded|thousands }}</td>
+            <td class="num{% if arrived is None and day_missing %} is-missing{% endif %}">{{ arrived|thousands }}</td>
+            <td class="num{% if remaining is None and day_missing %} is-missing{% elif remaining < 0 %} is-negative{% endif %}">{{ remaining|thousands }}</td>
+            <td class="num">{{ day_missing|thousands }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  {% if grouped %}
+  <section class="tile r-table" aria-labelledby="r-mtu-t">
+    <div class="t-head">
+      <h2 class="t-title" id="r-mtu-t">МТУ бўйича</h2>
+      <span class="t-sub">{{ d_from|d }} – {{ d_to|d }}</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="key">МТУ</th>
+            <th class="num">Туширилган</th>
+            <th class="num">Кириб келган</th>
+            <th class="num">Қолган, {{ d_to|d }} 20:00</th>
+            <th class="num">Киритилган / кутилган</th>
+            <th class="num">Қўлда ўзгартирилган</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in mtu_rows %}
+          <tr class="r-mtu-row mtu-{{ row.mtu.sort }}">
+            <th scope="row"><i class="key"></i>{{ row.mtu.name }}</th>
+            <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|thousands }}</td>
+            <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|thousands }}</td>
+            <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|thousands }}</td>
+            <td class="num">{{ row.submitted|thousands }} / {{ row.expected|thousands }}</td>
+            <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total">
+            <th scope="row">Жами</th>
+            <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|thousands }}</td>
+            <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|thousands }}</td>
+            <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|thousands }}</td>
+            <td class="num">{{ total.submitted|thousands }} / {{ total.expected|thousands }}</td>
+            <td class="num">{{ total.overrides }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="tile r-table{% if mtu %} mtu-{{ mtu.sort }}{% endif %}" aria-labelledby="r-st-t">
+    <div class="t-head">
+      <h2 class="t-title" id="r-st-t">Станциялар бўйича</h2>
+      <span class="t-sub">{{ d_from|d }} – {{ d_to|d }}</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="key">Станция</th>
+            <th class="num">Туширилган</th>
+            <th class="num">Кириб келган</th>
+            <th class="num">Қолган, {{ d_to|d }} 20:00</th>
+            <th class="num">Киритилган / кутилган</th>
+            <th class="num">Қўлда ўзгартирилган</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in station_rows %}
+          {% if grouped %}{% ifchanged row.mtu.id %}<tr class="group mtu-{{ row.mtu.sort }}"><th colspan="6"><span>{{ row.mtu.name }} МТУ</span></th></tr>{% endifchanged %}{% endif %}
+          <tr>
+            <th scope="row">{{ row.station.name }}</th>
+            <td class="num{% if row.unloaded is None and row.missing %} is-missing{% endif %}">{{ row.unloaded|thousands }}</td>
+            <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|thousands }}</td>
+            <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|thousands }}</td>
+            <td class="num">{{ row.submitted|thousands }} / {{ row.expected|thousands }}</td>
+            <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6"><p class="empty">Станциялар йўқ</p></td></tr>
+          {% endfor %}
+        </tbody>
+        {% if station_rows %}
+        <tfoot>
+          <tr class="total">
+            <th scope="row">Жами</th>
+            <td class="num{% if total.unloaded is None and total.missing %} is-missing{% endif %}">{{ total.unloaded|thousands }}</td>
+            <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|thousands }}</td>
+            <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|thousands }}</td>
+            <td class="num">{{ total.submitted|thousands }} / {{ total.expected|thousands }}</td>
+            <td class="num">{{ total.overrides }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </section>
 </div>
 
 {{ chart|json_script:"chart-data" }}

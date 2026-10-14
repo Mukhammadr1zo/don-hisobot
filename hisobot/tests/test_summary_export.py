@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from io import BytesIO
+from unittest import mock
 
 import openpyxl
 from django.test import TestCase
@@ -335,6 +336,7 @@ class ViewTests(DayFixture):
         response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["chart"]["compare"]["labels"], ["Тошкент", "Қўқон"])
+        self.assertEqual(response.context["chart"]["compare"]["sorts"], [1, 2])  # each bar in its МТУ's colour
         self.assertEqual(response.context["chart"]["daily"]["labels"], ["10.09.2026", "11.09.2026", "12.09.2026"])
         self.assertEqual([r.station for r in response.context["station_rows"]], [self.s1, self.s2, self.s4, self.s3])
         self.assertEqual([r.mtu for r in response.context["mtu_rows"]], [self.mtu_a, self.mtu_b])
@@ -347,20 +349,52 @@ class ViewTests(DayFixture):
         self.assertContains(response, "Оралиқда киритилмаган станция-даврлар: 19")
         self.assertContains(response, f'href="{reverse("staff_export")}?d=2026-09-12"')
         self.assertContains(response, "Excel юклаб олиш")
-        self.assertContains(response, '<form method="get" class="toolbar no-print" novalidate>')  # not on paper
+        self.assertContains(response, '<form method="get" class="toolbar r-range no-print" novalidate>')  # not on paper
+        self.assertContains(response, "hisobot/pages/report.css")
+
+    def test_a_day_still_filling_is_not_drawn_as_a_finished_day(self):
+        self.entry(self.s3, tk(10, 20), unloaded=2, arrived=2, calc=0)  # 10.09 is over and closed: drawn
+        self.login(self.boss)
+        # At 12.09 14:00 stations may still enter 11.09 (day) and 12.09 (night); 12.09's day period has not ended.
+        with mock.patch("django.utils.timezone.now", return_value=tk(12, 14)):
+            response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
+        daily = response.context["chart"]["daily"]
+        self.assertEqual(daily["unloaded"], [2, None, None])
+        self.assertEqual([daily[key][-1] for key in ("arrived", "remaining")], [None, None])
+        self.assertEqual([day["label"] for day in response.context["partial_days"]], ["11.09", "12.09"])
+        self.assertContains(response, "Ҳали тўлиқ эмас, графикда йўқ: 11.09: туширилган")
+        # Later, with the day over and its window closed, it is an ordinary day again.
+        self.login(self.boss)  # the session saved under the mocked clock expired a month ago
+        response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
+        self.assertEqual(response.context["partial_days"], [])
+        self.assertIsNotNone(response.context["chart"]["daily"]["unloaded"][-1])
 
     def test_report_page_for_an_mtu_user_compares_its_stations(self):
         self.login(self.tashkent)
         response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12", "mtu": self.mtu_b.id})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["chart"]["compare"]["labels"], ["Олмазор", "=1+1", "Сергели"])
+        self.assertEqual(response.context["chart"]["compare"]["sorts"], [1, 1, 1])
         self.assertNotContains(response, "Бета")
         self.assertContains(response, "Оралиқда киритилмаган станция-даврлар: 13")
+        # One hero dot per station, filled by its share entered: Олмазор and Сергели 2 of 6, =1+1 1 of 6.
+        self.assertContains(response, '<i style="--p:33"></i>', count=2)
+        self.assertContains(response, '<i style="--p:16"></i>', count=1)
+
+    def test_station_comparison_leaves_out_a_station_that_expects_nothing(self):
+        self.station("Кейин", self.mtu_a, 9, active_from=tk(20, 8))  # expects nothing in the range
+        self.login(self.tashkent)
+        response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
+        compare = response.context["chart"]["compare"]
+        self.assertEqual(compare["labels"], ["Олмазор", "=1+1", "Сергели"])  # the bars stay aligned
+        self.assertEqual((compare["unloaded"], compare["arrived"], compare["sorts"]), ([7, 5, 1], [3, 0, 1], [1, 1, 1]))
+        self.assertContains(response, '<th scope="row">Кейин</th>', html=True)  # the table still lists it
 
     def test_boshqarma_with_one_mtu_compares_its_stations(self):
         self.login(self.boss)
         response = self.get("staff_report", **{"from": "2026-09-12", "to": "2026-09-12", "mtu": self.mtu_b.id})
         self.assertEqual(response.context["chart"]["compare"]["labels"], ["Бета"])
+        self.assertEqual(response.context["chart"]["compare"]["sorts"], [2])
         self.assertContains(response, f'href="{reverse("staff_export")}?d=2026-09-12&amp;mtu={self.mtu_b.id}"')
 
     def test_presets_and_defaults(self):

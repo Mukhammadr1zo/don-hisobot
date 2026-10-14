@@ -1,91 +1,92 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
 {% comment %}
-Station start page: server time, the two open periods (newest first), when the next one opens,
-and the last seven report days, read only. Cell states as in the daily table (app.css TABLES).
+Station start page (mockup c-rangli/station.html, screen A): server time, the two open periods (newest first; the
+night one is the dark card), when the next one opens, and the last seven report days, read only.
+History: one <tbody> per day, a row per period (night first), so every value and cell state of the daily table
+stays while four columns fit a phone. States as in the daily table: grey = not entered, flagged = typed by hand,
+red = negative, italic = carried; the day's «Жами» is the daily total, * when a period is missing.
 {% endcomment %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/station.css' %}">{% endblock %}
 
 {% block content %}
-<div>
-  <h1>{{ request.station.name }}</h1>
-  <p class="muted">Сервер вақти: {{ now|dt }}</p>
-</div>
+<div class="stack mtu-{{ request.station.mtu.sort }}">
+  <p class="s-time"><span>Сервер вақти</span><b>{{ now|d }} · {{ now|t }}</b></p>
 
-{% for card in cards %}
-<article class="card">
-  <div class="card-head">
-    <div>
-      <h2 class="card-title">{{ card.pe|period_name }}</h2>
-      <p class="card-sub">{{ card.pe|period_range }}</p>
+  {% for card in cards %}
+  <article class="tile{% if card.night %} tile-night{% endif %} pc stack" aria-labelledby="davr-{{ forloop.counter }}">
+    <div class="pc-head">
+      <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-{% if card.night %}moon{% else %}sun{% endif %}"/></svg></span>
+      <div><h2 id="davr-{{ forloop.counter }}">{{ card.pe|period_name }}</h2><p>{{ card.pe|period_range }}</p></div>
     </div>
-    {% if card.entry %}<span class="badge-ok">Қабул қилинди {{ card.entry.updated_at|t }}</span>
-    {% elif not card.refusal %}<span class="badge-warn">Топширилмаган</span>{% endif %}
-  </div>
-  {% if card.entry %}
-  <div class="stat-row">
-    <div class="stat"><span class="stat-num">{{ card.entry.unloaded }}</span><span class="stat-cap">Туширилган</span></div>
-    <div class="stat"><span class="stat-num">{{ card.entry.arrived }}</span><span class="stat-cap">Кириб келган</span></div>
-    <div class="stat{% if card.entry.remaining < 0 %} is-negative{% endif %}"><span class="stat-num">{{ card.entry.remaining }}</span><span class="stat-cap">Қолган</span></div>
-  </div>
-  {% endif %}
-  {% if card.refusal %}
-  <p class="card-sub">{{ card.refusal }}</p>
-  {% elif card.entry %}
-  <p class="card-sub">{{ card.deadline|date:"d.m H:i" }} гача тузатиш мумкин</p>
-  <a class="btn btn-block" href="{% url 'station_entry' card.pe|slug %}">Тузатиш</a>
-  {% else %}
-  <p class="card-sub">{{ card.deadline|date:"d.m H:i" }} гача киритиш мумкин</p>
-  <a class="btn btn-primary btn-block" href="{% url 'station_entry' card.pe|slug %}">Киритиш</a>
-  {% endif %}
-</article>
-{% endfor %}
-<p class="muted">Кейинги давр {{ next_open|t }} да очилади</p>
+    {% if card.entry %}
+    <p><span class="chip chip-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Қабул қилинди {{ card.entry.updated_at|t }}</span></p>
+    <div class="stat-row boxed">
+      <div class="stat"><span class="stat-num">{{ card.entry.unloaded }}</span><span class="stat-cap">Туширилган</span></div>
+      <div class="stat"><span class="stat-num">{{ card.entry.arrived }}</span><span class="stat-cap">Кириб келган</span></div>
+      <div class="stat em{% if card.entry.remaining < 0 %} is-negative{% endif %}"><span class="stat-num">{{ card.entry.remaining }}</span><span class="stat-cap">Қолган</span></div>
+    </div>
+    {% elif not card.refusal %}
+    <p><span class="chip chip-wait"><svg class="ico" aria-hidden="true"><use href="#i-wait"/></svg>Топширилмаган</span></p>
+    {% endif %}
+    {% if card.refusal %}
+    <p class="pc-note">{{ card.refusal }}</p>
+    {% else %}
+    <p class="pc-note"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-clock"/></svg>{{ card.deadline|date:"d.m H:i" }} гача {% if card.entry %}тузатиш{% else %}киритиш{% endif %} мумкин</p>
+    {% if card.entry %}
+    <a class="btn btn-line btn-lg btn-block" href="{% url 'station_entry' card.pe|slug %}">Тузатиш</a>
+    {% else %}
+    <a class="btn {% if card.night %}btn-white{% else %}btn-ink{% endif %} btn-lg btn-block" href="{% url 'station_entry' card.pe|slug %}">Киритиш<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    {% endif %}
+    {% endif %}
+  </article>
+  {% endfor %}
 
-<h2>Охирги {{ history|length }} кун</h2>
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th rowspan="2" class="key">Сана</th>
-        <th colspan="3">Тунги давр (20:00–08:00)</th>
-        <th colspan="3">Кундузги давр (08:00–20:00)</th>
-        <th rowspan="2" class="num">Сутка давомида жами туширилган вагонлар сони</th>
-      </tr>
-      <tr>
-        <th class="num">Туширилган</th>
-        <th class="num">Кириб келган</th>
-        <th class="num">Қолган</th>
-        <th class="num">Туширилган</th>
-        <th class="num">Кириб келган</th>
-        <th class="num">Қолган</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for day, cells, row in history %}
-      <tr>
-        <th scope="row" class="nowrap">{{ day|d }}</th>
-        {% for cell in cells %}
-        {% if cell.entry %}
-        <td class="num">{{ cell.entry.unloaded }}</td>
-        <td class="num">{{ cell.entry.arrived }}</td>
-        <td class="num{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}">{{ cell.remaining }}</td>
-        {% else %}
-        <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
-        <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
-        <td class="num{% if cell.expected %} is-missing{% endif %}{% if cell.carried %} is-carried{% endif %}">{{ cell.remaining|num }}</td>
-        {% endif %}
+  <p class="next">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="var(--tint)"/><circle cx="20" cy="20" r="11" fill="none" stroke="var(--deep)" stroke-width="2.5"/><path d="M20 14v6l-4.5 2.6" fill="none" stroke="var(--deep)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Кейинги давр <b>{{ next_open|t }}</b> да очилади</span>
+  </p>
+
+  <section class="tile hist" aria-labelledby="hist-title">
+    <div class="hist-head"><h2 id="hist-title">Охирги {{ history|length }} кун</h2><span>сутка бўйича</span></div>
+    <div class="hist-wrap">
+      <table class="hist-table">
+        <thead>
+          <tr><th scope="col">Сана</th><th scope="col"><span class="sr">Давр</span></th><th scope="col" class="num">Туширилган</th><th scope="col" class="num">Кириб келган</th><th scope="col" class="num">Қолган</th></tr>
+        </thead>
+        {% for day, cells, row in history %}
+        <tbody>
+          {% for cell in cells %}
+          <tr>
+            {% if forloop.first %}<th scope="rowgroup" rowspan="2">{{ day|d }}<small{% if row.total_unloaded is None and row.partial %} class="is-missing"{% endif %}>Жами {{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</small></th>{% endif %}
+            <td class="per"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-{% if forloop.first %}moon{% else %}sun{% endif %}"/></svg><span class="sr">{% if forloop.first %}Тунги давр{% else %}Кундузги давр{% endif %}</span></td>
+            {% if cell.entry and not cell.entry.unloaded and not cell.entry.arrived %}
+            <td class="zero" colspan="2">Ҳаракат бўлмади <span class="nowrap">(0 / 0)</span></td>
+            {% elif cell.entry %}
+            <td class="num{% if cell.entry.unloaded %} bar{% endif %}" style="--w:{{ cell.entry.unloaded|percent:top }}">{{ cell.entry.unloaded }}</td>
+            <td class="num">{{ cell.entry.arrived }}</td>
+            {% else %}
+            <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
+            <td class="num{% if cell.expected %} is-missing{% endif %}">{{ None|num }}</td>
+            {% endif %}
+            {% if cell.entry %}
+            <td class="num q{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}">{{ cell.remaining }}</td>
+            {% else %}
+            <td class="num q{% if cell.expected %} is-missing{% endif %}{% if cell.carried %} is-carried{% endif %}">{{ cell.remaining|num }}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
         {% endfor %}
-        <td class="num{% if row.total_unloaded is None and row.partial %} is-missing{% endif %}">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </table>
+    </div>
+    <ul class="legend">
+      <li><span class="swatch is-missing"></span>Киритилмаган</li>
+      <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
+      <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
+      <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
+      <li><span>12*</span>Бир давр киритилмаган</li>
+    </ul>
+  </section>
 </div>
-<ul class="legend">
-  <li><span class="swatch is-missing"></span>Киритилмаган</li>
-  <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
-  <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
-  <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
-  <li><span>12*</span>Бир давр киритилмаган</li>
-</ul>
 {% endblock %}

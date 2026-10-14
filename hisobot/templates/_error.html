@@ -1,0 +1,30 @@
+{% comment %}The standalone error pages (404, 405, 500) extend this. No base.html: 500 renders without a request or the
+database, and base.html reverses URL names, which a test's own URLconf may not have.{% endcomment %}{% load static %}<!doctype html>
+<html lang="uz-Cyrl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{% block title %}{% endblock %} · Дон ҳисоботи</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{% static 'hisobot/app.css' %}">
+<link rel="stylesheet" href="{% static 'hisobot/pages/admin.css' %}">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="/"><span class="brand-mark"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22V9"/><path d="M12 9c0-2.6 1.2-4.6 0-7-1.2 2.4 0 4.4 0 7z"/><path d="M12 13c-2.7 0-4.4-1.8-4.4-4 2.6 0 4.4 1.6 4.4 4zM12 13c2.7 0 4.4-1.8 4.4-4-2.6 0-4.4 1.6-4.4 4z"/><path d="M12 17.5c-2.7 0-4.4-1.8-4.4-4 2.6 0 4.4 1.6 4.4 4zM12 17.5c2.7 0 4.4-1.8 4.4-4-2.6 0-4.4 1.6-4.4 4z"/></svg></span>Дон ҳисоботи</a>
+  </div>
+</header>
+<main class="page">
+<section class="tile err">
+  <p class="err-code" aria-hidden="true">{% block code %}{% endblock %}</p>
+  <div class="stack">
+    <h1>{% block heading %}{% endblock %}</h1>
+    <p>{% block text %}{% endblock %}</p>
+    <div class="actions"><a class="btn btn-primary" href="/">Бош саҳифа</a></div>
+  </div>
+</section>
+</main>
+</body>
+</html>

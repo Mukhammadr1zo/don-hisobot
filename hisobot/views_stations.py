@@ -168,15 +168,29 @@ def index(request):
         return redirect(reverse("stations") + _filter(request, mtu))
 
     now = timezone.now()
-    by_mtu = {item: [] for item in ([mtu] if mtu else access.mtus_for(request.user))}
+    mtus = [mtu] if mtu else list(access.mtus_for(request.user))
+    groups = {item: {"mtu": item, "stations": [], "active": 0, "nopin": 0, "locked": 0} for item in mtus}
+    renew = 0  # what «ПИН яратиш» with nothing ticked gives a PIN: pin_sheet's active_to=None + issue_unused_pins
     for station in stations:
         station.pin_state = _pin_state(station)
         station.hard_locked = access.hard_locked(station)
         station.locked = station.hard_locked or (station.locked_until is not None and station.locked_until > now)
-        by_mtu[station.mtu].append(station)
+        group = groups[station.mtu]
+        group["stations"].append(station)
+        group["active"] += station.is_active
+        group["nopin"] += station.is_active and station.pin_state == "none"
+        group["locked"] += station.locked
+        renew += station.is_active and station.pin_state != "used"
+    for group in groups.values():
+        group["off"] = len(group["stations"]) - group["active"]
+        # One МТУ on the page, or a station waiting to be unlocked: the section starts open.
+        group["open"] = len(mtus) == 1 or group["locked"] > 0
+    total = sum(len(group["stations"]) for group in groups.values())
+    active = sum(group["active"] for group in groups.values())
     context = {
         "form": form,
-        "groups": by_mtu.items(),
+        "groups": groups.values(),
+        "counts": {"total": total, "active": active, "off": total - active, "renew": renew},
         "mtu": mtu,
         "mtus": access.mtus_for(request.user) if request.user.is_boshqarma else None,
         "query": _filter(request, mtu),

@@ -1,18 +1,6 @@
-{% comment %}Standalone like 404.html. Rendered by hisobot.middleware for a GET of a POST-only URL.{% endcomment %}{% load static %}<!doctype html>
-<html lang="uz-Cyrl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>Тугма орқали очилади · Дон ҳисоботи</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="{% static 'hisobot/app.css' %}">
-</head>
-<body>
-<main class="page narrow">
-<h1>Бу саҳифа тугма орқали очилади</h1>
-<p>Бу манзилни тўғридан-тўғри очиб бўлмайди. ПИН варақ фақат «ПИН яратиш» ёки «ПИН янгилаш» тугмасидан кейин бир марта кўринади.</p>
-<div class="actions"><a class="btn btn-primary" href="/">Бош саҳифа</a></div>
-</main>
-</body>
-</html>
+{% extends "_error.html" %}
+{% comment %}Rendered by hisobot.middleware for a GET of a POST-only URL.{% endcomment %}
+{% block title %}Тугма орқали очилади{% endblock %}
+{% block code %}405{% endblock %}
+{% block heading %}Бу саҳифа тугма орқали очилади{% endblock %}
+{% block text %}Бу манзилни тўғридан-тўғри очиб бўлмайди. ПИН варақ фақат «ПИН яратиш» ёки «ПИН янгилаш» тугмасидан кейин бир марта кўринади.{% endblock %}

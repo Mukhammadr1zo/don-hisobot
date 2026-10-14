@@ -1,0 +1,147 @@
+/* «Ҳисобот» (templates/hisobot/staff/report.html). Shared vocabulary is in app.css; this is the page's own layout.
+   .r-range    the range toolbar (a .toolbar) on the page: preset pills (.r-presets, the look of the top nav), dates,
+               МТУ, «Кўрсатиш».
+   .r-sub      the night hero: submitted / expected (.big-xl; .is-4 from four digits on), then one .r-meter per МТУ
+               (.dot-row with a bar for dots; the rows share columns), or for one МТУ a .dots of its stations, each a
+               pie of its periods entered (--p).
+   .r-kpi      a KPI tile; .big.is-4 for four digits, .is-5 for five and more.
+   .r-chart    a chart tile; the .chart box fills the tile's height, or shrinks to its fallback text when there is
+               nothing to draw. .r-key: the comparison's legend keys.
+   .r-table    a table tile: the table runs to the tile's edges; with .mtu-N its head is a tinted band. The days
+               <details> («Кунлар бўйича жадвал») is a bento row in the same look.
+   .r-grouped  on the .bento when there is more than one МТУ (МТУ bars in the hero, shares, the МТУ table). */
+
+.r-export{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+
+/* ---- Range toolbar: on the page, white controls as the mockup's period switcher --------------------------- */
+
+.r-range{margin-bottom:22px}
+/* The fields fill the row and shrink first, so «Кўрсатиш» stays on it down to 896px (boshqarma; an МТУ user's
+   row always fits). Narrower, it wraps and its auto margin sets it at the right, under the last field. */
+.r-range > .field{flex:1 1 9rem}
+.r-range > .field:first-child{flex:none;margin-right:8px}
+.r-range > .r-mtu{flex-basis:11rem}
+.r-range > .field > span{font-size:15px;font-weight:650}
+.r-range > .btn{min-height:48px;margin-left:auto;padding:0 26px}
+/* The top nav's segmented pill (pages/admin.css has a radio one, .seg: one shared control belongs in app.css). */
+.r-presets{display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--surface)}
+.r-presets > a{display:flex;align-items:center;justify-content:center;min-height:40px;min-width:5.5rem;padding:0 20px;
+  border-radius:999px;color:var(--ink-2);font-weight:600;text-decoration:none;transition:background-color .15s,color .15s}
+.r-presets > a:hover{background:var(--panel);color:var(--ink)}
+.r-presets > a[aria-current]{background:var(--ink);color:#fff}
+
+/* ---- Numbers ----------------------------------------------------------- */
+
+.r-sub{gap:18px;container-type:inline-size}
+.r-sub .kpi-row{margin-top:6px}
+/* Up to three digits the mockup's 132px (.big-xl); from four on as large as leaves room for «/ M» and the %. */
+.r-sub .big.is-4{font-size:min(132px,19cqi)}
+.r-sub > .muted{max-width:46ch;font-size:14.5px}
+/* One set of columns for all rows: a longer «N/M» must not shorten its own bar. */
+.r-meters{display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:12px 16px;margin-top:auto;padding-top:6px}
+.r-meters .dot-row{grid-column:1/-1;grid-template-columns:subgrid;column-gap:inherit}
+.r-meter{--track:var(--line);display:block;height:10px;border-radius:5px;
+  background:linear-gradient(to right,var(--mark) calc(var(--p,0) * 1%),var(--track) 0)}
+.r-sub > .legend{margin-top:auto;padding-top:6px;font-size:13px}
+/* 24 to a row keeps 68 stations within the 1440px hero's height; capped so the full-width hero (up to 1020px)
+   keeps about 20px dots. Each dot is a pie of the station's periods entered, full only when all are in. */
+.r-sub > .dots{max-width:36rem;margin-top:-4px}
+.r-sub > .dots i,.r-sub > .legend .key{background:conic-gradient(var(--mark) calc(var(--p,0) * 1%),transparent 0);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.42)}
+.r-sub > .legend .key{--p:100}
+.r-sub > .legend .key.half{--p:50}
+
+.r-kpi{gap:18px;container-type:inline-size}
+.r-kpi .kpi-row{margin-top:2px}
+/* As wide as the tile allows: a year of the whole network is six digits. */
+.r-kpi .big{font-size:min(76px,30cqi)}
+.r-kpi .big.is-5{font-size:min(76px,22cqi)}
+.r-kpi .share{margin-top:auto}
+.r-kpi .share + .t-sub{margin-top:-8px;font-size:13px}
+.r-qol .share{height:16px}
+.r-qol .share > span:first-child{border-top-left-radius:8px;border-bottom-left-radius:8px}
+.r-qol .share > span:last-child{border-top-right-radius:8px;border-bottom-right-radius:8px}
+.r-qol > .t-sub{margin-top:auto}
+.r-qol .legend b.is-negative{color:var(--alert)} /* app.css's .legend b would keep it ink; belongs there (Task 6) */
+
+/* ---- Charts ------------------------------------------------------------ */
+
+.r-chart{gap:18px}
+.r-chart > .t-head{column-gap:16px}
+.r-chart .chart{flex:1 0 auto;min-height:18rem}
+/* Nothing to draw (or no Chart.js): the fallback line, not a tall empty box. */
+.r-chart .chart:has(> .empty){flex:none;height:auto;min-height:0}
+.key-ln.is-dashed{background:repeating-linear-gradient(to right,currentColor 0 5px,transparent 5px 8px)}
+.r-key{flex:none;width:14px;height:10px;border-radius:3px;background:var(--mark)}
+.r-key.is-light{background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--mark)}
+
+/* ---- Tables ------------------------------------------------------------ */
+
+.r-table{gap:16px;padding-bottom:0;overflow:hidden}
+.r-table > .table-wrap{margin:0 calc(-1 * var(--pad));border-radius:0}
+/* The band meets the header row: its bottom margin takes back the tile's gap. */
+.r-table[class*="mtu-"] > .t-head{margin:calc(-1 * var(--pad)) calc(-1 * var(--pad)) -16px;padding:18px var(--pad);
+  background:var(--tint)}
+.r-table[class*="mtu-"] > .t-head .t-sub{color:var(--deep);font-weight:550}
+:is(.r-table,.bento > details) .table :is(th,td):first-child{padding-left:var(--pad)}
+:is(.r-table,.bento > details) .table :is(th,td):last-child{padding-right:var(--pad)}
+.r-table .table tr.group th > span{left:var(--pad)}
+.r-mtu-row > th{white-space:nowrap}
+.r-mtu-row i.key{display:inline-block;margin-right:10px;vertical-align:1px}
+/* «Кунлар бўйича жадвал» among the tiles: their radius, inset and title (app.css draws details as an inner panel).
+   No overflow:hidden, which would clip the summary's focus ring: the table rounds its own bottom corners. */
+.bento > details{padding:0 var(--pad);border-radius:var(--r-tile)}
+.bento > details[open]{padding-bottom:0}
+.bento > details > summary{margin:0 calc(-1 * var(--pad));padding:0 var(--pad);font-size:18px;font-weight:650;
+  letter-spacing:-.015em}
+.bento > details > .table-wrap{margin:0 calc(-1 * var(--pad));border-radius:0 0 var(--r-tile) var(--r-tile)}
+
+/* ---- Narrower screens -------------------------------------------------- */
+
+/* Several МТУ: three KPI tiles beside the hero leave a four-digit number no room for «вагон», so the hero goes on
+   top, as below 1020px. One МТУ keeps the wide layout: its «Қолган» has no bar or legend to fill a whole row.
+   Bounded, so the selectors cannot outrank app.css's 760px phone layout. */
+@media (min-width:1021px) and (max-width:1180px){
+  .r-grouped > .r-sub,.r-grouped > .r-qol{grid-column:1/-1;grid-row:auto}
+  .r-grouped > .r-kpi.span-3{grid-column:span 6}
+}
+@media (max-width:1020px){
+  .bento > .r-chart{grid-column:1/-1} /* app.css makes a span-5 half: the comparison would leave a hole */
+}
+/* One МТУ: the three KPI tiles share the row under the hero. */
+@media (min-width:761px) and (max-width:1020px){
+  .bento:not(.r-grouped) > .r-kpi{grid-column:span 2}
+}
+@media (max-width:760px){
+  .r-export{flex:1 1 100%;align-items:stretch}
+  .r-chart .legend.push{margin-left:0}
+  .r-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .r-range > .field:first-child,.r-range > .r-mtu,.r-range > .btn{grid-column:1/-1;margin:0}
+  .r-presets > a{flex:1;min-height:44px}
+  /* 52px, as the full-width «Қолган», in a half tile too while the number fits. «вагон» goes under it there, so
+     the two half tiles match whatever their digits («495 вагон» is wider than the tile, «581 вагон» is not). */
+  .r-kpi .big{font-size:min(52px,40cqi)}
+  .r-kpi .big.is-4{font-size:min(52px,30cqi)}
+  .r-kpi .big.is-5{font-size:min(52px,22cqi)}
+  .r-kpi.phone-half .unit-word{flex-basis:100%}
+  .r-meters{grid-template-columns:84px minmax(0,1fr) auto;column-gap:12px}
+  .r-sub > .dots{--cols:16}
+  /* .big-xl is 96px here; from four digits on the numeral has the line to itself, «/ M» and the % go under it. */
+  .r-sub .big.is-4{flex-basis:100%;font-size:min(96px,28cqi)}
+  .r-sub .big-md{font-size:26px}
+  .r-chart .chart{min-height:16rem}
+}
+
+@media print{
+  /* The МТУ's light tint, not --line (#888 here): in grey print the Қўқон, Термиз and Қўнғирот fills are as light
+     as #888 or lighter, and their bars would vanish. */
+  .r-meter{--track:var(--tint);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .r-sub > .dots{--cols:24} /* A4 is narrower than 760px: not the phone's bigger dots */
+  .r-sub > .dots i,.r-sub > .legend .key{box-shadow:inset 0 0 0 1.5px #000}
+  .bento > details:not([open]){display:none} /* a closed «Кунлар бўйича жадвал» would be a lone line on a sheet */
+  .r-table{overflow:visible;padding-bottom:var(--pad)}
+  .r-table > .table-wrap,.bento > details > .table-wrap{margin:0}
+  :is(.r-table,.bento > details) .table :is(th,td):first-child{padding-left:var(--cell-x)}
+  :is(.r-table,.bento > details) .table :is(th,td):last-child{padding-right:var(--cell-x)}
+  .r-table[class*="mtu-"] > .t-head{margin:0;padding:0;background:none}
+}

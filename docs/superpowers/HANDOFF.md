@@ -82,6 +82,9 @@ CA; production servers do not.
 ## Open minor items (none blocking)
 
 - Station edit page's links back to Станциялар do not carry the boshqarma's `?mtu=`.
+- «Блокдан чиқариш» on a station's own page (added in the bento redesign) lands on Станциялар, without `?mtu=`,
+  instead of back on that page: `views_stations.unlock` always redirects to the list. A view change, so left out of
+  the redesign.
 - `client_ip` falls back to `0.0.0.0` silently when the address cannot be parsed.
 - `seed` help text is Latin-script Uzbek (CLI only).
 - Opening-balance corrections on a station with years of history cascade with two queries per later entry

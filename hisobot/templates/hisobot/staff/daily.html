@@ -1,18 +1,29 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
 {% comment %}
-The customer's daily template: two header rows, 9 columns, grouped by MTU with «<МТУ> жами» each,
-and a grand «Жами» when more than one MTU is shown. A period that has ended links its cells to the form;
-a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug or None) ×2]), …], totals)].
+The customer's daily template: two header rows, 9 columns, grouped by MTU (a tinted title row each) with
+«<МТУ> жами» each, and a grand «Жами» when more than one MTU is shown. A period that has ended links its cells to
+the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug or None) ×2]), …], totals)].
 {% endcomment %}
 {% block title %}Кунлик жадвал · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/staff.css' %}">{% endblock %}
 
 {% block content %}
-<div class="toolbar">
-  <h1>Кунлик жадвал</h1>
-  <span class="spacer"></span>
-  <a class="btn no-print" href="{{ export_url }}">Excel юклаб олиш</a>
-</div>
+<section class="pagehead">
+  <div>
+    <h1>Кунлик жадвал</h1>
+    <p class="t-sub">{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %}</p>
+  </div>
+  <nav class="pager" aria-label="Кун">
+    <a class="btn no-print" href="{{ prev_url }}" aria-label="Олдинги кун"></a>
+    {# One inner block, as on «Ҳозир»: h2 and p straight in the pill would size it as if they shared a line. #}
+    <div>
+      <div><h2>{{ day|d }}</h2><p class="card-sub">{{ start|date:"d.m H:i" }} – {{ end|date:"d.m H:i" }}</p></div>
+    </div>
+    {% if next_url %}<a class="btn no-print" href="{{ next_url }}" aria-label="Кейинги кун"></a>{% else %}<span class="btn no-print" aria-disabled="true"></span>{% endif %}
+  </nav>
+</section>
+
 <form method="get" novalidate class="toolbar no-print">
   <div class="field">
     <label for="kun">Сана</label>
@@ -28,88 +39,86 @@ a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug
   </div>
   {% endif %}
   <button class="btn">Кўрсатиш</button>
+  <span class="spacer"></span>
+  <a class="btn no-print" href="{{ export_url }}"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Excel юклаб олиш</a>
 </form>
-<nav class="pager" aria-label="Кун">
-  <a class="btn no-print" href="{{ prev_url }}" aria-label="Олдинги кун"></a>
-  <div>
-    <h2>{{ day|d }}</h2>
-    <p class="card-sub">{{ start|dt }} – {{ end|dt }}</p>
-  </div>
-  {% if next_url %}<a class="btn no-print" href="{{ next_url }}" aria-label="Кейинги кун"></a>{% else %}<span class="btn no-print" aria-disabled="true"></span>{% endif %}
-</nav>
 
 {% if groups %}
-<ul class="legend">
-  <li><span class="swatch is-missing"></span>Киритилмаган</li>
-  <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
-  <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
-  <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
-  <li><span>12*</span>Бир давр киритилмаган</li>
-</ul>
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th rowspan="2" class="nowrap">Т/Р</th>
-        <th rowspan="2" class="key">Станция номи</th>
-        <th colspan="3">20:00–08:00 оралиғида</th>
-        <th colspan="3">08:00–20:00 оралиғида</th>
-        <th rowspan="2" class="num">Сутка давомида жами туширилган вагонлар сони</th>
-      </tr>
-      <tr>
-        <th class="num">Туширилган вагонлар сони</th>
-        <th class="num">Кириб келган вагонлар сони</th>
-        <th class="num">Юк туширишда қолган вагонлар сони</th>
-        <th class="num">Туширилган вагонлар сони</th>
-        <th class="num">Кириб келган вагонлар сони</th>
-        <th class="num">Юк туширишда қолган вагонлар сони</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for group_mtu, lines, total in groups %}
-      <tr class="group"><th colspan="9"><span>{{ group_mtu.name }} МТУ</span></th></tr>
-      {% for row, cells in lines %}
-      <tr>
-        <td class="num">{{ forloop.counter }}</td>
-        <th scope="row">{{ row.station.name }}</th>
-        {% for cell, slug in cells %}{% if slug %}{% url 'staff_entry' row.station.pk slug as href %}{% endif %}
-        <td class="num{% if cell.expected and not cell.entry %} is-missing{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.unloaded|num }}</a>{% endif %}</td>
-        <td class="num{% if cell.expected and not cell.entry %} is-missing{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.arrived|num }}</a>{% endif %}</td>
-        <td class="num{% if cell.expected and not cell.entry %} is-missing{% endif %}{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}{% if cell.carried %} is-carried{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.remaining|num }}</a>{% endif %}</td>
+<section class="tile daily" aria-label="Кунлик жадвал · {{ day|d }}">
+  <ul class="legend">
+    <li><span class="swatch is-missing"></span>Киритилмаган</li>
+    <li><span class="swatch is-override"></span>Қўлда ўзгартирилган</li>
+    <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
+    <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
+    <li><span>12*</span>Бир давр киритилмаган</li>
+    <li><span class="is-off">—</span>Ўчирилган станция</li>
+  </ul>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th rowspan="2" class="nowrap">Т/Р</th>
+          <th rowspan="2" class="key">Станция номи</th>
+          <th colspan="3"><span class="period-key"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-moon"/></svg>20:00–08:00 оралиғида</span></th>
+          <th colspan="3"><span class="period-key"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-sun"/></svg>08:00–20:00 оралиғида</span></th>
+          <th rowspan="2" class="num">Сутка давомида жами туширилган вагонлар сони</th>
+        </tr>
+        <tr>
+          <th class="num">Туширилган вагонлар сони</th>
+          <th class="num">Кириб келган вагонлар сони</th>
+          <th class="num">Юк туширишда қолган вагонлар сони</th>
+          <th class="num">Туширилган вагонлар сони</th>
+          <th class="num">Кириб келган вагонлар сони</th>
+          <th class="num">Юк туширишда қолган вагонлар сони</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group_mtu, lines, total in groups %}
+        <tr class="group mtu-{{ group_mtu.sort }}"><th colspan="9"><span>{{ group_mtu.name }} МТУ</span></th></tr>
+        {% for row, cells in lines %}
+        <tr>
+          <td class="num">{{ forloop.counter }}</td>
+          <th scope="row">{{ row.station.name }}</th>
+          {# A period the station does not expect (switched off) and did not enter is quieter than «Киритилмаган». #}
+          {% for cell, slug in cells %}{% if slug %}{% url 'staff_entry' row.station.pk slug as href %}{% endif %}
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.unloaded|num }}</a>{% endif %}</td>
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.arrived|num }}</a>{% endif %}</td>
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}{% if cell.carried %} is-carried{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.remaining|num }}</a>{% endif %}</td>
+          {% endfor %}
+          <td class="num{% if row.total_unloaded is None %}{% if row.partial %} is-missing{% else %} is-off{% endif %}{% endif %}">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
+        </tr>
         {% endfor %}
-        <td class="num{% if row.partial and row.total_unloaded is None %} is-missing{% endif %}">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
-      </tr>
-      {% endfor %}
-      <tr class="total">
-        <td></td>
-        <th scope="row">{{ group_mtu.name }} МТУ жами</th>
-        <td class="num">{% if night_ended %}{{ total.n_unloaded }}{% endif %}</td>
-        <td class="num">{% if night_ended %}{{ total.n_arrived }}{% endif %}</td>
-        <td class="num">{% if night_ended %}{{ total.n_remaining }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ total.d_unloaded }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ total.d_arrived }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ total.d_remaining }}{% endif %}</td>
-        <td class="num">{{ total.total_unloaded }}{% if total.partial %}*{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    {% if grand %}
-    <tfoot>
-      <tr class="total">
-        <td></td>
-        <th scope="row">Жами</th>
-        <td class="num">{% if night_ended %}{{ grand.n_unloaded }}{% endif %}</td>
-        <td class="num">{% if night_ended %}{{ grand.n_arrived }}{% endif %}</td>
-        <td class="num">{% if night_ended %}{{ grand.n_remaining }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ grand.d_unloaded }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ grand.d_arrived }}{% endif %}</td>
-        <td class="num">{% if day_ended %}{{ grand.d_remaining }}{% endif %}</td>
-        <td class="num">{{ grand.total_unloaded }}{% if grand.partial %}*{% endif %}</td>
-      </tr>
-    </tfoot>
-    {% endif %}
-  </table>
-</div>
+        <tr class="total">
+          <td></td>
+          <th scope="row">{{ group_mtu.name }} МТУ жами</th>
+          <td class="num">{% if night_ended %}{{ total.n_unloaded }}{% endif %}</td>
+          <td class="num">{% if night_ended %}{{ total.n_arrived }}{% endif %}</td>
+          <td class="num">{% if night_ended %}{{ total.n_remaining }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ total.d_unloaded }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ total.d_arrived }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ total.d_remaining }}{% endif %}</td>
+          <td class="num">{{ total.total_unloaded }}{% if total.partial %}*{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if grand %}
+      <tfoot>
+        <tr class="total">
+          <td></td>
+          <th scope="row">Жами</th>
+          <td class="num">{% if night_ended %}{{ grand.n_unloaded }}{% endif %}</td>
+          <td class="num">{% if night_ended %}{{ grand.n_arrived }}{% endif %}</td>
+          <td class="num">{% if night_ended %}{{ grand.n_remaining }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ grand.d_unloaded }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ grand.d_arrived }}{% endif %}</td>
+          <td class="num">{% if day_ended %}{{ grand.d_remaining }}{% endif %}</td>
+          <td class="num">{{ grand.total_unloaded }}{% if grand.partial %}*{% endif %}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</section>
 {% else %}
 <p class="empty">Станциялар йўқ</p>
 {% endif %}

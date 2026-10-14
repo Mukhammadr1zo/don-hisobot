@@ -2,6 +2,7 @@
 
 import re
 from datetime import date, timedelta
+from itertools import compress
 from urllib.parse import urlencode
 
 from django.http import HttpResponse
@@ -72,10 +73,35 @@ def report(request):
 
     station_rows, mtu_rows = summary.summary(stations, d_from, d_to, now=now)
     series = summary.daily_series(stations, d_from, d_to, now=now)
+    # As on «Ҳозир»: a day whose day period has not ended, or that stations may still enter while some have not, is
+    # still filling. Its sums are not comparable yet: the chart leaves it out and the note under it gives them.
+    open_days = {periods.label(end)[0] for end in periods.open_for_station(now)}
+    filling = [
+        series["unloaded"][i] is not None
+        and (periods.ends_for(day)[1] > now or (day in open_days and bool(series["missing"][i])))
+        for i, day in enumerate(d_from + timedelta(days=n) for n in range(len(series["labels"])))
+    ]
+    drawn = {key: [None if f else v for v, f in zip(series[key], filling)] for key in ("unloaded", "arrived", "remaining")}
+    if all(v is None for values in drawn.values() for v in values):
+        drawn = {}  # nothing finished to compare it with: draw what there is
+    partial_days = [
+        {"label": series["labels"][i][:5], **{key: series[key][i] for key in ("unloaded", "arrived", "missing")}}
+        for i, f in enumerate(filling)
+        if f and drawn
+    ]
     by = "mtu" if request.user.is_boshqarma and mtu is None else "station"
+    compare = summary.compare(stations, d_from, d_to, by=by)
+    # The rows come from the same queryset in the same order as the bars.
+    rows = mtu_rows if by == "mtu" else station_rows
+    compare["sorts"] = [row.mtu.sort for row in rows]  # the МТУ of each bar, for its colour (charts.js)
+    if by == "station":
+        # A station that expects nothing in the range (outside active_from/active_to) would be an empty row;
+        # the table still lists it.
+        keep = [row.expected > 0 for row in rows]
+        compare = {key: list(compress(values, keep)) for key, values in compare.items()}
     chart = {
-        "daily": series,
-        "compare": summary.compare(stations, d_from, d_to, by=by),
+        "daily": {**series, **drawn},
+        "compare": compare,
         "names": {
             "unloaded": "Туширилган",
             "arrived": "Кириб келган",
@@ -97,6 +123,7 @@ def report(request):
         "grouped": len(mtu_rows) > 1,
         "total": total,
         "missing": total.missing,
+        "partial_days": partial_days,
         "by": by,
         "chart": chart,
         "days": list(days),

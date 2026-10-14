@@ -1,67 +1,77 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
 {% comment %}
-One period's numbers. The hidden version and prev echo what this page showed, so balance.save_entry can tell
-a stale page (spec 5.6.4). A station's first entry asks for the opening balance instead of showing «Давр бошида».
-«Қолган» is computed live by the script below; without JavaScript it shows the saved value or a dash.
+One period's numbers (mockup c-rangli/station.html, screen B). The hidden version and prev echo what this page
+showed, so balance.save_entry can tell a stale page (spec 5.6.4). A station's first entry asks for the opening
+balance instead of showing «Давр бошида». «Қолган» is computed live by the script below, which also drives the
+− / + buttons; without JavaScript it shows the saved value or a dash and the buttons do nothing.
 {% endcomment %}
 {% block title %}{{ pe|period_name }} · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/station.css' %}">{% endblock %}
 
 {% block content %}
-<a class="back" href="{% url 'station_home' %}">Орқага</a>
-<div class="card-head">
-  <div>
-    <h1>{{ pe|period_name }}</h1>
-    <p class="muted">{{ pe|period_range }}</p>
-  </div>
-  {% if existing %}<span class="badge-ok">Қабул қилинди {{ existing.updated_at|t }}</span>{% else %}<span class="badge-warn">Топширилмаган</span>{% endif %}
-</div>
-{% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
-{% if gap %}<div class="notice-warn" role="status">Олдинги давр киритилмаган</div>{% endif %}
+<div class="stack mtu-{{ request.station.mtu.sort }}">
+  <a class="back" href="{% url 'station_home' %}">Орқага</a>
 
-<form method="post" novalidate class="stack" id="davr">
-  {% csrf_token %}
-  {% for hidden in form.hidden_fields %}{{ hidden }}{% for message in hidden.errors %}<div class="notice-error" role="alert">{{ message }}</div>{% endfor %}{% endfor %}
-  {% if needs_opening %}
-  <div class="field">
-    <label for="{{ form.opening.id_for_label }}">{{ form.opening.label }}</label>
-    {{ form.opening }}
-    {{ form.opening.errors }}
-    <p class="field-hint">Бир марта киритилади, кейин уни фақат МТУ ёки Бошқарма ўзгартира олади.</p>
-  </div>
-  {% else %}
-  <div class="stat"><span class="stat-num">{{ form.prev.value }}</span><span class="stat-cap">Давр бошида</span></div>
-  {% endif %}
-  <div class="field-row">
-    <div class="field">
-      <label for="{{ form.unloaded.id_for_label }}">{{ form.unloaded.label }}</label>
-      {{ form.unloaded }}
-      {{ form.unloaded.errors }}
+  <section class="tile{% if night %} tile-night{% endif %} pc stack" aria-labelledby="davr-title">
+    <div class="pc-head">
+      <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-{% if night %}moon{% else %}sun{% endif %}"/></svg></span>
+      <div><h1 id="davr-title">{{ pe|period_name }} · {{ pe|d }}</h1><p>{{ pe|period_range }}</p></div>
     </div>
-    <div class="field">
-      <label for="{{ form.arrived.id_for_label }}">{{ form.arrived.label }}</label>
-      {{ form.arrived }}
-      {{ form.arrived.errors }}
+    <p>{% if existing %}<span class="chip chip-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Қабул қилинди {{ existing.updated_at|t }}</span>{% else %}<span class="chip chip-wait"><svg class="ico" aria-hidden="true"><use href="#i-wait"/></svg>Топширилмаган</span>{% endif %}</p>
+    {% if not needs_opening %}<p class="opening"><span>Давр бошида:</span><b>{{ form.prev.value|num }}</b></p>{% endif %}
+  </section>
+
+  {% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
+  {% if gap %}<div class="notice-warn" role="status">Олдинги давр киритилмаган</div>{% endif %}
+
+  <form method="post" novalidate class="stack" id="davr">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% for message in hidden.errors %}<div class="notice-error" role="alert">{{ message }}</div>{% endfor %}{% endfor %}
+    {% if needs_opening %}
+    <div class="num-field">
+      <label for="{{ form.opening.id_for_label }}">{{ form.opening.label }} <small>вагон</small></label>
+      {{ form.opening }}
+      {{ form.opening.errors }}
+      <p class="field-hint">Бир марта киритилади, кейин уни фақат МТУ ёки Бошқарма ўзгартира олади.</p>
     </div>
-  </div>
-  <div class="card"><div class="stat{% if left < 0 %} is-negative{% endif %}"><span class="stat-num" id="qolgan" aria-live="polite">{{ left|num }}</span><span class="stat-cap">Қолган</span></div></div>
-  <details{% if override_open %} open{% endif %}>
-    <summary>{{ form.override.label }}</summary>
-    <div class="field">
-      <label for="{{ form.override.id_for_label }}">Қолган</label>
-      {{ form.override }}
-      {{ form.override.errors }}
-      <p class="field-hint">Бўш қолдирилса, қолдиқ автоматик ҳисобланади.</p>
+    {% endif %}
+    {% for field in form %}{% if field.name == "unloaded" or field.name == "arrived" %}
+    <div class="num-field">
+      <label for="{{ field.id_for_label }}">{{ field.label }} <small>вагон</small></label>
+      <div class="stepper">
+        <button type="button" data-step="-1" aria-label="{{ field.label }}: битта камайтириш"><svg class="ico" aria-hidden="true"><use href="#i-minus"/></svg></button>
+        {{ field }}
+        <button type="button" data-step="1" aria-label="{{ field.label }}: битта кўпайтириш"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </div>
+      {{ field.errors }}
     </div>
-  </details>
-  <button class="btn btn-primary btn-block">Юбориш</button>
-  <button class="btn btn-block" name="harakatsiz" value="1">Ҳаракат бўлмади (0 / 0)</button>
-  <p class="card-sub">{{ deadline|date:"d.m H:i" }} гача {% if existing %}тузатиш{% else %}киритиш{% endif %} мумкин</p>
-</form>
+    {% endif %}{% endfor %}
+
+    <div class="result{% if left is None %} is-blank{% elif left < 0 %} is-negative{% endif %}">
+      <div><p class="t-title">Қолган:</p><p class="t-sub tnum" id="hisob"></p></div>
+      <output class="big" id="qolgan" for="{{ form.unloaded.id_for_label }} {{ form.arrived.id_for_label }} {{ form.override.id_for_label }}" aria-live="polite">{{ left|num }}</output>
+    </div>
+
+    <details{% if override_open %} open{% endif %}>
+      <summary><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>{{ form.override.label }}</summary>
+      <div class="field">
+        <label for="{{ form.override.id_for_label }}">Қолган</label>
+        {{ form.override }}
+        {{ form.override.errors }}
+        <p class="field-hint">Бўш қолдирилса, қолдиқ автоматик ҳисобланади.</p>
+      </div>
+    </details>
+
+    <button class="btn btn-ink btn-lg btn-block">Юбориш</button>
+    <button class="btn btn-white btn-lg btn-block" name="harakatsiz" value="1">Ҳаракат бўлмади (0 / 0)</button>
+    <p class="pc-note"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-clock"/></svg>{{ deadline|date:"d.m H:i" }} гача {% if existing %}тузатиш{% else %}киритиш{% endif %} мумкин</p>
+  </form>
+</div>
 <script>
 (function () {
   // The server's sum: start + arrived - unloaded, unless the remaining was typed by hand.
-  var form = document.getElementById("davr"), out = document.getElementById("qolgan");
+  var form = document.getElementById("davr"), out = document.getElementById("qolgan"), sum = document.getElementById("hisob");
   function value(name) {
     var field = form.elements[name], text = field ? field.value.trim() : "";
     return /^-?\d+$/.test(text) ? Number(text) : null;
@@ -69,11 +79,22 @@ a stale page (spec 5.6.4). A station's first entry asks for the opening balance 
   function update() {
     var start = form.elements.opening ? value("opening") : value("prev");
     var unloaded = value("unloaded"), arrived = value("arrived"), typed = value("override");
-    var left = typed !== null ? typed
-      : start === null || unloaded === null || arrived === null ? null : start + arrived - unloaded;
-    out.textContent = left === null ? "—" : left;
+    var computed = start === null || unloaded === null || arrived === null ? null : start + arrived - unloaded;
+    var left = typed !== null ? typed : computed;
+    out.textContent = left === null ? "—" : left < 0 ? "−" + -left : left;
+    sum.textContent = typed === null && computed !== null ? start + " + " + arrived + " − " + unloaded : "";
     out.parentNode.classList.toggle("is-negative", left !== null && left < 0);
+    out.parentNode.classList.toggle("is-blank", left === null);
   }
+  // − and +: one wagon less or more, within the field's own min and max.
+  form.querySelectorAll("[data-step]").forEach(function (button) {
+    var field = button.parentNode.querySelector("input");
+    button.addEventListener("click", function () {
+      var next = (value(field.name) || 0) + Number(button.dataset.step);
+      field.value = Math.min(Math.max(next, Number(field.min)), Number(field.max));
+      update();
+    });
+  });
   form.addEventListener("input", update);
   update();
 })();

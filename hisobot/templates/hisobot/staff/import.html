@@ -1,9 +1,16 @@
 {% extends "hisobot/base.html" %}
+{% load static %}
 {% block title %}Импорт · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/admin.css' %}">{% endblock %}
 
 {% block content %}
 <a class="back" href="{% url 'stations' %}">Станциялар</a>
-<h1>Станцияларни импорт қилиш</h1>
+<section class="pagehead">
+  <div>
+    <h1>Станцияларни импорт қилиш</h1>
+    <p class="t-sub">Excel файлдаги рўйхатдан янги станциялар бир йўла қўшилади.</p>
+  </div>
+</section>
 {% if errors %}
 <div class="notice-error" role="alert">
   <p>Импорт бажарилмади, ҳеч нарса сақланмади:</p>
@@ -13,37 +20,55 @@
 </div>
 {% endif %}
 
-<div class="narrow stack">
-  <p>Excel (.xlsx) файлининг биринчи варағи ўқилади. Биринчи қатор сарлавҳа: <strong>МТУ | Станция номи</strong>. Кейинги ҳар бир қатор битта станция; қаторлар тартиби рўйхатдаги тартиб бўлади.</p>
-  <div class="table-wrap">
-    <table class="table">
-      <thead><tr><th>МТУ</th><th>Станция номи</th></tr></thead>
-      <tbody>
-        {% with mtu=mtus.0.name|default:"Тошкент" %}
-        <tr><td>{{ mtu }}</td><td>Чуқурсой</td></tr>
-        <tr><td>{{ mtu }}</td><td>Тошкент-Товар</td></tr>
-        <tr><td>{{ mtu }}</td><td>Сергели</td></tr>
-        {% endwith %}
-      </tbody>
-    </table>
-  </div>
-  <ul>
-    <li>МТУ номи: {% for mtu in mtus %}«{{ mtu.name }}»{% if not forloop.last %}, {% endif %}{% endfor %}. Катта-кичик ҳарф фарқ қилмайди.</li>
-    <li>Тизимда бор станциялар ўтказиб юборилади: номи ўзгармайди, ўчирилмайди, ПИНига тегилмайди.</li>
-    <li>Битта хато бўлса ҳам ҳеч нарса сақланмайди; хатолар қатор рақами билан кўрсатилади.</li>
-    <li>Файл 1 МБ гача, 1000 та станциягача. Бўш қаторлар ҳисобга олинмайди.</li>
-  </ul>
-  <form method="post" enctype="multipart/form-data" novalidate class="stack">
-    {% csrf_token %}
-    <div class="field">
-      <label for="roster-file">Станциялар рўйхати (.xlsx)</label>
-      <input type="file" id="roster-file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      <p class="field-hint">Биринчи қатор: МТУ | Станция номи. 1 МБ ва 1000 қаторгача.</p>
+<div class="bento">
+  <section class="tile span-7 stack" aria-labelledby="format-title">
+    <div class="t-head">
+      <span class="ibox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M9 9.5V20"/></svg></span>
+      <h2 class="t-title" id="format-title">Файл қандай бўлиши керак</h2>
     </div>
-    <div class="actions">
-      <button class="btn btn-primary">Импорт қилиш</button>
-      <a class="btn btn-quiet" href="{% url 'stations' %}">Бекор қилиш</a>
+    <p>Excel (.xlsx) файлининг биринчи варағи ўқилади. Биринчи қатор сарлавҳа: <strong>МТУ | Станция номи</strong>. Кейинги ҳар бир қатор битта станция; қаторлар тартиби рўйхатдаги тартиб бўлади.</p>
+    <div class="xl-wrap">
+      <table class="xl">
+        <caption class="sr">Намуна: варақнинг биринчи тўрт қатори</caption>
+        <thead><tr><td></td><th scope="col">A</th><th scope="col">B</th></tr></thead>
+        <tbody>
+          <tr class="xl-head"><th scope="row">1</th><td>МТУ</td><td>Станция номи</td></tr>
+          {% with mtu=mtus.0.name|default:"Тошкент" %}
+          <tr><th scope="row">2</th><td>{{ mtu }}</td><td>Чуқурсой</td></tr>
+          <tr><th scope="row">3</th><td>{{ mtu }}</td><td>Тошкент-Товар</td></tr>
+          <tr><th scope="row">4</th><td>{{ mtu }}</td><td>Сергели</td></tr>
+          {% endwith %}
+        </tbody>
+      </table>
     </div>
-  </form>
+    <ul class="rules">
+      <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>МТУ номи: {% for mtu in mtus %}<span class="chip chip-mtu mtu-{{ mtu.sort }}">{{ mtu.name }}</span>{% if not forloop.last %} {% endif %}{% endfor %}. Катта-кичик ҳарф фарқ қилмайди.</span></li>
+      <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Тизимда бор станциялар ўтказиб юборилади: номи ўзгармайди, ўчирилмайди, ПИНига тегилмайди.</span></li>
+      <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Битта хато бўлса ҳам ҳеч нарса сақланмайди; хатолар қатор рақами билан кўрсатилади.</span></li>
+      <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Файл 1 МБ гача, 1000 та станциягача. Бўш қаторлар ҳисобга олинмайди.</span></li>
+    </ul>
+  </section>
+
+  <section class="tile span-5 stack import-up" aria-labelledby="upload-title">
+    <div class="t-head">
+      <span class="ibox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg></span>
+      <h2 class="t-title" id="upload-title">Файлни юклаш</h2>
+    </div>
+    <form method="post" enctype="multipart/form-data" novalidate class="stack">
+      {% csrf_token %}
+      <div class="field">
+        <label for="roster-file">Станциялар рўйхати (.xlsx)</label>
+        <div class="drop">
+          <input type="file" id="roster-file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          <span class="drop-hint" aria-hidden="true">Файлни шу ерга ташланг</span>
+        </div>
+        <p class="field-hint">Биринчи қатор: МТУ | Станция номи. 1 МБ ва 1000 қаторгача.</p>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary">Импорт қилиш</button>
+        <a class="btn btn-quiet" href="{% url 'stations' %}">Бекор қилиш</a>
+      </div>
+    </form>
+  </section>
 </div>
 {% endblock %}

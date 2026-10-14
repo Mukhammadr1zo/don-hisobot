@@ -360,6 +360,14 @@ class PinSheetTests(StationsTestCase):
         self.assertTrue(check_password(pins[0].replace(" ", ""), self.stored(self.given).pin_hash))
         self.assertEqual(self.stored(self.station).pin_hash, "")
 
+    def test_the_button_counts_what_a_press_with_nothing_ticked_renews(self):
+        for user, expected in ((self.user_a, 2), (self.boss, 3)):  # the boshqarma's press covers every МТУ
+            with self.subTest(user=user.username):
+                self.login(user)
+                renew = self.client.get(reverse("stations")).context["counts"]["renew"]
+                issued = PIN_ON_SHEET.findall(self.sheet().content.decode())
+                self.assertEqual((renew, len(issued)), (expected, expected))
+
     def test_nothing_to_issue_redirects_with_a_notice(self):
         response = self.sheet(station=[str(self.used.pk)])
 
@@ -431,6 +439,22 @@ class StationIndexTests(StationsTestCase):
         self.assertContains(response, "Чуқурсой")
         self.assertContains(response, self.foreign.name)
 
+    def test_each_mtu_section_counts_its_stations_and_opens_for_a_lock(self):
+        now = timezone.now()
+        Station.objects.create(mtu=self.mtu_b, name="Ўчган", sort=2, active_to=now)
+        Station.objects.create(mtu=self.mtu_b, name="Блокли", sort=3, locked_until=now + timedelta(hours=1))
+        access.set_pin(self.foreign, actor=self.boss, ip="10.0.0.1")
+        self.login(self.boss)
+
+        groups = {group["mtu"]: group for group in self.client.get(reverse("stations")).context["groups"]}
+
+        counts = ("active", "off", "nopin", "locked", "open")
+        self.assertEqual([groups[self.mtu_b][key] for key in counts], [2, 1, 1, 1, True])
+        # Nothing to unlock: closed while the page lists every МТУ, open when it is the only one.
+        self.assertEqual([groups[self.mtu_a][key] for key in counts], [1, 0, 1, 0, False])
+        only_a = self.client.get(reverse("stations"), {"mtu": self.mtu_a.pk}).context["groups"]
+        self.assertEqual([group["open"] for group in only_a], [True])
+
     def test_boshqarma_can_filter_one_mtu_and_its_pin_sheet_stays_in_it(self):
         self.login(self.boss)
         response = self.client.get(reverse("stations"), {"mtu": self.mtu_b.pk})
@@ -479,7 +503,10 @@ class StationIndexTests(StationsTestCase):
                 response = self.client.post(reverse("stations"), {"name": name})
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'aria-invalid="true"')
+                # A phone puts the add tile after the roster (pages/admin.css), but not the open form and its error.
+                self.assertContains(response, "is-first")
         self.assertEqual(Station.objects.count(), 2)
+        self.assertNotContains(self.client.get(reverse("stations")), "is-first")
 
     def test_unlock(self):
         Station.objects.filter(pk=self.station.pk).update(
@@ -621,6 +648,14 @@ class EditTests(StationsTestCase):
 
         self.assertContains(response, "биринчи ёзув билан бирга киритилади")
         self.assertIsNone(self.stored(self.station).opening_remaining)
+
+    def test_a_locked_station_can_be_unlocked_from_its_page(self):
+        unlock = reverse("station_unlock", args=[self.station.pk])
+        self.assertNotContains(self.client.get(self.url), unlock)
+
+        Station.objects.filter(pk=self.station.pk).update(locked_until=timezone.now() + timedelta(hours=1))
+
+        self.assertContains(self.client.get(self.url), f'action="{unlock}"')
 
     def test_history_lists_station_events_newest_first(self):
         access.set_pin(self.station, actor=self.boss, ip="10.0.0.1")

@@ -1,0 +1,133 @@
+/* Visitor pages: the start page (/), an МТУ's station picker (/m/<id>/), the PIN page (/s/<id>/) and /kirish/.
+   Layout ported from design-mockups/c-rangli (home.html, mtu.html); tokens and components are app.css's.
+   The start page and the picker are full-width bentos; the PIN and login pages sit in the 34rem column. */
+
+/* ---- «Ҳозир очиқ»: the period stations can enter now (start page and picker) ---- */
+.open-badge{display:inline-flex;align-items:center;align-self:flex-start;gap:8px;min-height:32px;padding:0 14px 0 10px;
+  border-radius:999px;background:var(--panel);font-size:14px;font-weight:600;white-space:nowrap}
+.live{flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px var(--ok-bg)}
+.tile-night .live{background:#7ee2a8;box-shadow:0 0 0 4px rgba(126,226,168,.18)}
+
+/* ---- Start page ---- */
+.h-hero{padding:34px 0 26px;overflow:hidden;min-height:430px}
+.h-hero .in{padding:0 36px}
+.h-hero h1{margin-top:34px;font-size:76px;font-weight:800;letter-spacing:-.045em;line-height:.95}
+.h-hero .lead{max-width:28ch;margin-top:18px;color:var(--ink-2);font-size:20px;line-height:1.4}
+.train{margin-top:auto;padding-top:32px}
+.train svg{width:1480px;max-width:none;height:auto;margin-left:36px}
+
+.sky-art{position:absolute;top:20px;right:22px;width:76px;height:76px}
+/* 34px above: the first line starts below the 76px art, so «Кундузги давр · 14.10.2026» can run full width. */
+.open-name{margin-top:auto;padding-top:34px;font-size:32px;font-weight:750;letter-spacing:-.03em;line-height:1.05}
+.open-name small{display:block;margin-top:8px;color:var(--ink-2);font-size:17px;font-weight:550;letter-spacing:0}
+.open-foot{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
+  color:var(--ink-2);font-size:14.5px}
+
+.clock{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 18px;height:100%}
+.clock-time{margin-top:12px;font-size:68px}
+.dial{width:150px;height:150px}
+.dial-legend{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:2px;color:var(--ink-2);font-size:13px}
+.dial-legend span{display:flex;align-items:center;gap:8px}
+.dial-legend i{flex:none;width:12px;height:12px;border-radius:4px;background:var(--night)}
+.dial-legend i.day{background:var(--line)}
+.clock-note{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--line);
+  color:var(--ink-2);font-size:14.5px}
+
+.h-pick{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:22px 4px 2px}
+
+.h-mtu{min-height:186px;padding:24px 22px 22px 26px}
+.mtu-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mtu-top .name{min-width:0;font-size:32px;font-weight:750;letter-spacing:-.03em;line-height:1.05}
+.h-mtu .go{width:46px;height:46px;margin-top:-4px;background:var(--surface)}
+.mtu-bot{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:auto;padding-top:24px}
+/* One dot per active station, 12 to a row: up to 68 stations stay six rows. */
+.mtu-bot .dots{--cols:12;flex:1;min-width:0;max-width:210px;gap:6px}
+.cnt{color:var(--deep);font-size:14px;font-weight:600;line-height:1.1;text-align:right;white-space:nowrap}
+.cnt b{display:block;color:var(--ink);font-size:52px;font-weight:800;letter-spacing:-.045em;line-height:.9}
+
+.login{flex-direction:row;align-items:center;gap:18px;padding:22px 22px 22px 26px}
+.login .t-title{display:block;font-size:20px}
+.login .t-sub{display:block;margin-top:3px}
+
+/* ---- Station picker (and the PIN page's head) ---- */
+.p-head{overflow:hidden;min-height:300px}
+.p-head .wagon{position:absolute;top:34px;right:-44px;width:270px}
+.p-chip{align-self:flex-start;background:var(--panel);color:var(--deep)}
+.p-head h1{margin-top:auto;padding-top:40px;font-size:76px;font-weight:800;letter-spacing:-.045em;line-height:.95;
+  overflow-wrap:anywhere}
+.p-head .meta{margin-top:12px;color:var(--deep);font-size:18px;font-weight:600}
+.p-head .meta b{color:var(--ink);font-weight:800}
+
+.p-open{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:18px}
+.p-open .open-badge{margin-bottom:10px}
+.p-open b{display:block;font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.p-open b + span{display:block;margin-top:4px;color:var(--ink-2)}
+.p-deadline{display:flex;align-items:flex-start;gap:8px;max-width:11rem;padding-left:18px;border-left:1px solid var(--line);
+  color:var(--ink-2);font-size:14px;line-height:1.35}
+.p-deadline .ico{margin-top:2px}
+
+.p-list-head{display:flex;align-items:center;gap:12px;margin:20px 4px 2px}
+.p-empty{flex-direction:row;align-items:center;gap:18px}
+.p-empty[hidden]{display:none}
+.p-empty svg{width:96px;height:64px}
+.p-empty p{font-size:17px;font-weight:700}
+
+/* Staff login: the start page's hero, at its phone size (the page is always the narrow column). */
+.login-hero{padding:24px 0 18px;overflow:hidden}
+.login-hero .in{padding:0 26px}
+.login-hero h1{margin-top:22px;font-size:32px}
+.login-hero .t-sub{margin-top:8px;font-size:15px}
+.login-hero .train{padding-top:28px}
+.login-hero .train svg{width:820px;margin-left:26px}
+
+/* ---- Narrower screens ---- */
+/* From here the clock is half width (and full width on a phone): the phone sizes keep time and dial side by side. */
+@media (max-width:1020px){
+  .h-hero{min-height:0}
+  .bento > .p-head{grid-column:1/-1}
+  .clock-time{font-size:54px}
+  .dial{width:118px;height:118px}
+}
+@media (max-width:760px){
+  .h-hero{padding:24px 0 18px}
+  .h-hero .in{padding:0 22px}
+  .h-hero h1{margin-top:22px;font-size:46px}
+  .h-hero .lead{font-size:17px}
+  .train svg{width:820px;margin-left:22px}
+  .sky-art{top:16px;right:16px;width:60px;height:60px}
+  .open-name{font-size:28px}
+  .h-pick{margin:12px 2px 0}
+  .h-mtu{min-height:0;padding:16px 14px 16px 16px}
+  .mtu-top .name{padding-top:6px;font-size:20px}
+  .h-mtu .go{width:40px;height:40px;margin-top:0}
+  .mtu-bot{flex-direction:column;align-items:stretch;gap:12px;padding-top:16px}
+  .mtu-bot .dots{--cols:10;max-width:none;gap:4px}
+  .cnt{font-size:13px;text-align:left}
+  .cnt b{display:inline;margin-right:2px;font-size:22px;letter-spacing:-.03em}
+  .login{flex-wrap:wrap;padding:18px}
+  .login .t-title{font-size:17px}
+  .login .btn{width:100%}
+
+  .p-head{min-height:0}
+  .p-head h1{padding-top:58px;font-size:52px}
+  .p-head .meta{margin-top:8px;font-size:16px}
+  .p-head .wagon{top:16px;width:176px}
+  .p-open{grid-template-columns:auto minmax(0,1fr);gap:14px}
+  .p-open b{font-size:19px}
+  .p-deadline{grid-column:1/-1;max-width:none;padding:14px 0 0;border-left:0;border-top:1px solid var(--line)}
+  .p-list-head{margin:10px 2px 0}
+}
+/* A 360px phone: the title stays one line, «Қўнғирот» clears its arrow. */
+@media (max-width:380px){
+  .h-hero h1{font-size:40px}
+  .mtu-top{gap:8px}
+  .mtu-top .name{font-size:18px}
+  .h-mtu .go{width:36px;height:36px}
+}
+
+/* PIN page, after the picker's phone rules it overrides: the picker's head at its phone size, then the form tile. */
+.pin-head{min-height:0;padding-top:22px}
+.pin-head .wagon{top:16px;width:176px}
+.pin-head h1{padding-top:58px;font-size:40px}
+/* Four digits spaced like the printed sheet; the indent balances the spacing after the last one. */
+input.pin-input{min-height:84px;font-size:44px;letter-spacing:.4em;text-indent:.4em}

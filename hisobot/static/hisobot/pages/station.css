@@ -1,0 +1,64 @@
+/* Station pages: home (/stansiya/) and the entry form (/stansiya/davr/<slug>/), in the 34rem column.
+   Layout ported from design-mockups/c-rangli/station.html (screens A and B); tokens and components are app.css's.
+   The page wrapper carries the station's mtu-N, so --tint and --deep are its МТУ's. */
+
+.s-time{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;color:var(--ink-2);font-size:14px}
+.s-time b{color:var(--ink);font-weight:700}
+
+/* ---- A period card (home) and the period tile (form): dark for Тунги давр ---- */
+.pc{padding:20px}
+.pc-head{display:flex;align-items:center;gap:12px}
+.pc-head > div{min-width:0}
+.pc-head h1,.pc-head h2{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.pc-head p{margin-top:3px;color:var(--ink-3);font-size:14px}
+.pc-note{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:14px}
+.pc .stat-row.boxed > .em{background:var(--tint);color:var(--ink)}
+.pc .stat-row.boxed > .em .stat-cap{color:var(--deep)}
+.pc .stat-row.boxed > .em.is-negative{background:var(--alert-bg)}
+.pc .stat-row.boxed > .em.is-negative .stat-cap{color:var(--alert)}
+.opening{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid var(--line)}
+.opening span{color:var(--ink-2);font-size:16px}
+.opening b{font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1}
+
+.next{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:var(--r-panel);
+  box-shadow:inset 0 0 0 1.5px var(--line-2);color:var(--ink-2);font-weight:550}
+.next b{color:var(--ink)}
+.next svg{width:40px;height:40px}
+
+/* ---- Охирги 7 кун ---- */
+.hist{padding:0;overflow:hidden}
+.hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;background:var(--tint)}
+.hist-head h2{font-size:17px;font-weight:700;letter-spacing:-.015em}
+.hist-head span{color:var(--deep);font-size:13px;font-weight:600}
+.hist-wrap{overflow-x:auto}
+.hist-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.hist-table th,.hist-table td{padding:8px 6px;text-align:left;vertical-align:middle}
+.hist-table thead th{padding-top:12px;padding-bottom:6px;color:var(--ink-3);font-size:12px;font-weight:600;line-height:1.25}
+.hist-table .num{text-align:right}
+.hist-table tr > :first-child{padding-left:18px}
+.hist-table tr > :last-child{padding-right:18px}
+.hist-table tbody{border-top:1px solid var(--line)}
+/* Proportional digits: Onest's tabular «1» would read «1 4.1 0.2026». */
+.hist-table tbody th{padding-top:10px;color:var(--ink-2);font-size:14px;font-weight:550;font-variant-numeric:normal;
+  white-space:nowrap;vertical-align:top}
+.hist-table tbody th small{display:block;margin-top:3px;color:var(--ink-3);font-size:12.5px;font-weight:600}
+.hist-table td{font-size:15px;font-weight:600}
+.hist-table td.per{width:1%;padding-inline:4px;color:var(--ink-3)}
+.hist-table td.q{font-weight:750}
+/* The «Туширилган» bar: --w is the value as a percent of the week's largest. */
+.hist-table td.bar::before{content:"";display:inline-block;width:calc(var(--w) * .36px);min-width:4px;height:8px;
+  margin-right:8px;border-radius:4px;background:var(--mark);vertical-align:middle}
+.hist-table td.zero{color:var(--ink-3);font-size:12.5px;font-weight:600;line-height:1.25;text-align:center}
+/* Cell states as in the daily table (app.css .table). */
+.hist-table td.is-missing{background:var(--wait-bg)}
+.hist-table td.is-override{background:linear-gradient(225deg,var(--warn) 7px,transparent 0) var(--surface);
+  box-shadow:inset 0 0 0 2px var(--warn)}
+.hist-table td.is-negative{background:var(--alert-bg)}
+.hist .legend{padding:12px 18px 16px;border-top:1px solid var(--line);font-size:12.5px;gap:6px 14px}
+.hist .legend .swatch{width:14px;height:14px;border-radius:4px}
+
+/* ---- The entry form ---- */
+.result .t-sub:empty{display:none}
+/* Nothing to add up yet: a light dash, not a 60px black bar. */
+.result.is-blank .big{color:var(--ink-3);font-weight:400}
+.num-field > .field-hint,.num-field > .errorlist{margin-top:10px;padding:0 4px}

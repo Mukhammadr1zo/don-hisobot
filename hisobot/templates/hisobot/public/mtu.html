@@ -1,43 +1,77 @@
 {% extends "hisobot/base.html" %}
+{% load static hisobot_extras %}
 {% comment %}
-The active stations of one MTU. The search box is a GET form (?q=) that the server filters;
-with JavaScript the list also filters as you type.
+The active stations of one MTU (mockup c-rangli/mtu.html). The search box is a GET form (?q=) that the server
+filters; with JavaScript the tiles also filter as you type. `total` counts all active stations, `stations` the ones
+shown. `pe` `night` `deadline` come from views_public._open_now.
 {% endcomment %}
 {% block title %}{{ mtu.name }} МТУ · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/public.css' %}">{% endblock %}
+{% block layout %}{% endblock %}
+{% block top_actions %}<a class="back push" href="{% url 'home' %}">Барча МТУ</a>{% endblock %}
 
 {% block content %}
-<a class="back" href="{% url 'home' %}">Орқага</a>
-<h1>{{ mtu.name }} МТУ</h1>
-<form method="get" role="search">
-  <div class="field">
-    <label for="qidir">Станцияни қидириш</label>
-    <input type="search" id="qidir" name="q" value="{{ query }}" placeholder="Станция номи" autocomplete="off">
+<div class="bento picker mtu-{{ mtu.sort }}">
+  <section class="tile tile-mtu span-5 row-2 p-head" aria-labelledby="mtu-title">
+    <svg class="wagon" viewBox="0 0 160 80" aria-hidden="true"><use href="#wagon"/></svg>
+    <span class="chip p-chip">МТУ</span>
+    <h1 id="mtu-title">{{ mtu.name }}</h1>
+    <p class="meta"><b>{{ total }}</b> станция</p>
+  </section>
+
+  <form class="tile span-7 p-search" method="get" role="search">
+    <label class="field-label" for="qidir">Станцияни қидириш</label>
+    <div class="search">
+      <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+      <input type="search" id="qidir" name="q" value="{{ query }}" placeholder="{% if stations %}Масалан, {{ stations.0.name }}{% else %}Станция номи{% endif %}" autocomplete="off" aria-describedby="qidir-help">
+    </div>
+    <p class="help" id="qidir-help">Станцияни танлагач, ПИН киритасиз</p>
+  </form>
+
+  <section class="tile{% if night %} tile-night{% endif %} span-7 p-open" aria-label="Ҳозир очиқ давр">
+    <span class="ibox ibox-lg"><svg class="ico" aria-hidden="true"><use href="#i-{% if night %}moon{% else %}sun{% endif %}"/></svg></span>
+    <div>
+      <span class="open-badge"><i class="live"></i>Ҳозир очиқ</span>
+      <b>{{ pe|period_name }} · {{ pe|d }}</b>
+      <span>{{ pe|period_range }}</span>
+    </div>
+    <p class="p-deadline"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-clock"/></svg>{{ deadline|date:"d.m H:i" }} гача киритиш мумкин</p>
+  </section>
+
+  <div class="p-list-head">
+    <h2>Станцияни танланг</h2>
+    <span class="count" id="soni">{{ stations|length }}</span>
   </div>
-</form>
-{% if stations %}
-<ul class="list" id="stansiyalar">
-  {% for station in stations %}
-  <li><a href="{% url 'station_login' station.pk %}"><span>{{ station.name }}</span></a></li>
-  {% endfor %}
-</ul>
-{% endif %}
-<p class="empty" id="topilmadi"{% if stations %} hidden{% endif %}>{% if query %}Топилмади{% else %}Бу МТУда станциялар ҳали йўқ{% endif %}</p>
+
+  {% if stations %}
+  <nav class="st-grid" id="stansiyalar" aria-label="{{ mtu.name }} МТУ станциялари">
+    {% for station in stations %}<a class="st" href="{% url 'station_login' station.pk %}"><span class="st-av" aria-hidden="true">{{ station.name|first|upper }}</span><span class="st-name">{{ station.name }}</span><svg class="ico" aria-hidden="true"><use href="#i-right"/></svg></a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  <div class="tile p-empty" id="topilmadi"{% if stations %} hidden{% endif %}>
+    <svg viewBox="0 0 96 64" aria-hidden="true"><circle cx="40" cy="28" r="18" fill="var(--tint)" stroke="var(--deep)" stroke-width="4"/><path d="M53 41l14 14" stroke="var(--deep)" stroke-width="6" stroke-linecap="round"/><path d="M33 28h14" stroke="var(--deep)" stroke-width="4" stroke-linecap="round"/></svg>
+    <p>{% if query %}Топилмади{% else %}Бу МТУда станциялар ҳали йўқ{% endif %}</p>
+  </div>
+</div>
 <script>
 (function () {
-  var box = document.getElementById("qidir"), none = document.getElementById("topilmadi");
-  var rows = document.querySelectorAll("#stansiyalar > li");
-  if (!rows.length) return;
+  var box = document.getElementById("qidir"), none = document.getElementById("topilmadi"), count = document.getElementById("soni");
+  var tiles = document.querySelectorAll("#stansiyalar > .st");
+  if (!tiles.length) return;
   // As views_public._fold: у к г х е also find ў қ ғ ҳ ё (a Russian keyboard has none of them).
   function fold(text) {
     return text.toLocaleLowerCase().replace(/[ўқғҳё]/g, function (c) { return "укгхе".charAt("ўқғҳё".indexOf(c)); });
   }
   box.addEventListener("input", function () {
     var query = fold(box.value.trim()), shown = 0;
-    rows.forEach(function (row) {
-      row.hidden = fold(row.textContent).indexOf(query) === -1;
-      shown += row.hidden ? 0 : 1;
+    tiles.forEach(function (tile) {
+      tile.hidden = fold(tile.querySelector(".st-name").textContent).indexOf(query) === -1;
+      shown += tile.hidden ? 0 : 1;
     });
-    none.textContent = "Топилмади";
+    count.textContent = shown;
+    none.lastElementChild.textContent = "Топилмади";
     none.hidden = shown > 0;
   });
 })();

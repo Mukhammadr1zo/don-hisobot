@@ -1,35 +1,72 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
 {% block title %}{{ station.name }} · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/admin.css' %}">{% endblock %}
 
 {% block content %}
 <a class="back" href="{% url 'stations' %}">Станциялар</a>
-<div class="toolbar">
-  <div>
-    <h1>{{ station.name }}</h1>
-    <p class="muted">{{ station.mtu.name }} МТУ · охирги кириш: {{ station.last_login_at|dt }}</p>
-  </div>
-  <span class="spacer"></span>
-  <div class="actions">
-    {% if station.is_active %}<span class="badge-ok">Фаол</span>{% else %}<span class="badge-muted">Ўчирилган</span>{% endif %}
-    {% if pin_state == 'used' %}<span class="badge-ok">ПИН ишлатилган</span>{% elif pin_state == 'unused' %}<span class="badge-warn">ПИН берилган, ишлатилмаган</span>{% else %}<span class="badge-muted">ПИН берилмаган</span>{% endif %}
-    {% if locked %}<span class="badge-bad">{% if hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span>{% endif %}
-  </div>
-</div>
 
-<div class="actions">
-  {% if station.is_active %}
-  <form method="post" action="{% url 'station_pin' station.pk %}">{% csrf_token %}<button class="btn btn-danger">ПИН янгилаш</button></form>
-  <form method="post" action="{% url 'station_toggle' station.pk %}">{% csrf_token %}<input type="hidden" name="active" value="0"><button class="btn">Ўчириш</button></form>
-  {% else %}
-  <form method="post" action="{% url 'station_toggle' station.pk %}">{% csrf_token %}<input type="hidden" name="active" value="1"><button class="btn btn-primary">Қайта ёқиш</button></form>
-  {% endif %}
-</div>
-{% if station.is_active %}<p class="muted small">«ПИН янгилаш» эски ПИНни бекор қилади ва станциянинг очиқ сессияларини тугатади. Ўчирилган станцияга кириб бўлмайди, ундан ёзув кутилмайди; тарихи сақланади.</p>{% endif %}
+<div class="bento">
+  <section class="tile tile-mtu mtu-{{ station.mtu.sort }} span-7 st-hero" aria-labelledby="st-name">
+    <svg class="wagon" viewBox="0 0 160 80" aria-hidden="true"><use href="#wagon"/></svg>
+    <span class="chip st-hero-mtu">{{ station.mtu.name }} МТУ</span>
+    <h1 id="st-name">{{ station.name }}</h1>
+    <p class="st-hero-meta">Охирги кириш: <b>{{ station.last_login_at|dt }}</b></p>
+    <div class="actions">
+      {% if station.is_active %}<span class="chip chip-ok">Фаол</span>{% else %}<span class="chip chip-wait">Ўчирилган</span>{% endif %}
+      {% if pin_state == 'used' %}<span class="chip chip-ok">ПИН ишлатилган</span>{% elif pin_state == 'unused' %}<span class="chip chip-warn">ПИН берилган, ишлатилмаган</span>{% else %}<span class="chip chip-wait">ПИН берилмаган</span>{% endif %}
+      {% if locked %}<span class="chip chip-alert"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>{% if hard_locked %}Блокланган, МТУ очади{% else %}Блокланган {{ station.locked_until|dt }} гача{% endif %}</span>{% endif %}
+    </div>
+  </section>
 
-<div class="cols">
-  <div class="narrow stack">
-    <h2>Станция</h2>
+  <div class="tile span-5 stack st-acts">
+    {% if locked %}
+    <section class="panel stack st-lock" aria-labelledby="lock-title">
+      <div class="t-head">
+        <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></span>
+        <h2 class="t-title" id="lock-title">Блок</h2>
+        <form method="post" action="{% url 'station_unlock' station.pk %}" class="push">{% csrf_token %}<button class="btn">Блокдан чиқариш</button></form>
+      </div>
+      <p class="t-sub">ПИН кўп марта нотўғри терилди.</p>
+    </section>
+    {% endif %}
+    <section class="panel stack" aria-labelledby="pin-title">
+      <div class="t-head">
+        {# A key, not the lock (the lock is «блокланган»). Inline until Task 6 adds it to base.html's sprite. #}
+        <span class="ibox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L20 3M16.5 6.5l3 3M14 9l2 2"/></svg></span>
+        <h2 class="t-title" id="pin-title">ПИН</h2>
+        {% if station.is_active %}<form method="post" action="{% url 'station_pin' station.pk %}" class="push">{% csrf_token %}<button class="btn btn-danger">ПИН янгилаш</button></form>{% endif %}
+      </div>
+      {% if station.is_active %}
+      <p class="t-sub">«ПИН янгилаш» эски ПИНни бекор қилади ва станциянинг очиқ сессияларини тугатади.</p>
+      {% else %}
+      <p class="t-sub">Ўчирилган станцияга ПИН берилмайди. Аввал уни қайта ёқинг.</p>
+      {% endif %}
+    </section>
+    <section class="panel stack" aria-labelledby="state-title">
+      <div class="t-head">
+        {# On/off, for Ўчириш / Қайта ёқиш (#i-minus-circle is «Манфий қолдиқ»). Inline until Task 6's sprite. #}
+        <span class="ibox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v8M7.2 6.6a7.5 7.5 0 1 0 9.6 0"/></svg></span>
+        <h2 class="t-title" id="state-title">Ҳолат</h2>
+        {% if station.is_active %}
+        <form method="post" action="{% url 'station_toggle' station.pk %}" class="push">{% csrf_token %}<input type="hidden" name="active" value="0"><button class="btn">Ўчириш</button></form>
+        {% else %}
+        <form method="post" action="{% url 'station_toggle' station.pk %}" class="push">{% csrf_token %}<input type="hidden" name="active" value="1"><button class="btn btn-primary">Қайта ёқиш</button></form>
+        {% endif %}
+      </div>
+      {% if station.is_active %}
+      <p class="t-sub">Ўчирилган станцияга кириб бўлмайди, ундан ёзув кутилмайди; тарихи сақланади.</p>
+      {% else %}
+      <p class="t-sub">Станция ўчирилган: унга кириб бўлмайди, ундан ёзув кутилмайди.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="tile span-6 stack" aria-labelledby="name-title">
+    <div class="t-head">
+      <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></span>
+      <h2 class="t-title" id="name-title">Станция</h2>
+    </div>
     <form method="post" novalidate class="stack">
       {% csrf_token %}
       <input type="hidden" name="form" value="station">
@@ -49,9 +86,13 @@
         <a class="btn btn-quiet" href="{% url 'stations' %}">Бекор қилиш</a>
       </div>
     </form>
-  </div>
-  <div class="narrow stack">
-    <h2>Давр бошидаги қолдиқ</h2>
+  </section>
+
+  <section class="tile span-6 stack" aria-labelledby="opening-title">
+    <div class="t-head">
+      <span class="ibox"><svg class="ico" aria-hidden="true"><use href="#i-grain"/></svg></span>
+      <h2 class="t-title" id="opening-title">Давр бошидаги қолдиқ</h2>
+    </div>
     {% if station.opening_at %}
     <form method="post" novalidate class="stack">
       {% csrf_token %}
@@ -70,28 +111,33 @@
     {% elif opening_form.errors %}
     {% for error in opening_form.opening.errors %}<div class="notice-error" role="alert">{{ error }}</div>{% endfor %}
     {% else %}
-    <p class="muted">Станциянинг биринчи ёзуви билан киритилади.</p>
+    <p class="empty">Станциянинг биринчи ёзуви билан киритилади.</p>
     {% endif %}
-  </div>
-</div>
+  </section>
 
-<h2>Тарих</h2>
-{% if history %}
-<div class="table-wrap">
-  <table class="table">
-    <thead><tr><th>Вақт</th><th>Ким</th><th>Ўзгариш</th></tr></thead>
-    <tbody>
-      {% for change, text in history %}
-      <tr>
-        <td class="nowrap">{{ change.at|dt }}</td>
-        <td>{% if change.user %}{{ change.user.display_name }}{% else %}Станция (ПИН){% endif %}</td>
-        <td>{{ text }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <section class="tile stack" aria-labelledby="history-title">
+    <div class="t-head">
+      <h2 class="t-title" id="history-title">Тарих</h2>
+      {% if history %}<span class="count">{{ history|length }}</span>{% endif %}
+    </div>
+    {% if history %}
+    <div class="table-wrap hist">
+      <table class="table">
+        <thead><tr><th>Вақт</th><th>Ким</th><th>Ўзгариш</th></tr></thead>
+        <tbody>
+          {% for change, text in history %}
+          <tr>
+            <td class="nowrap">{{ change.at|dt }}</td>
+            <td>{% if change.user %}{{ change.user.display_name }}{% else %}Станция (ПИН){% endif %}</td>
+            <td>{{ text }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty">Ҳали ўзгариш йўқ</p>
+    {% endif %}
+  </section>
 </div>
-{% else %}
-<p class="empty">Ҳали ўзгариш йўқ</p>
-{% endif %}
 {% endblock %}

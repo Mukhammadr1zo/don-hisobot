@@ -1,0 +1,265 @@
+/* Staff pages: «Ҳозир» (staff/now.html), «Кунлик жадвал» (staff/daily.html) and one station's period
+   (staff/entry.html). Loaded after app.css; only what these pages lay out themselves. The look follows
+   design-mockups/c-rangli/dashboard.html (the source of these values). */
+
+/* =========================================================
+   «Ҳозир»
+   ========================================================= */
+
+/* Hero: «Топширди N / M», then one dot row per МТУ. */
+.n-hero{padding:28px 30px 30px}
+.n-hero > .kpi-row{margin-top:22px}
+.n-hero > .kpi-row + p{margin-top:18px}
+.n-hero > .kpi-row + p b{font-weight:650}
+.n-hero > .legend{margin-top:auto;padding-top:24px;font-size:13px}
+.dot-rows{display:grid;gap:12px;margin-top:14px}
+.n-hero .dot-row > :first-child{color:#e5e7f2}
+/* One МТУ in scope: its stations as one grid of dots (the title already names the МТУ). */
+.dots-all{--cols:24;margin-top:14px}
+/* From 1021px the hero stands beside two rows of tiles and has height to spare: dots at least --dot wide, larger
+   for an МТУ with fewer stations, and a narrower hero takes more rows. */
+@media (min-width:1021px){
+  .dots-all{--dot:40px;grid-template-columns:repeat(auto-fill,minmax(var(--dot),1fr))}
+  .dots-all:has(> :nth-child(37)){--dot:34px}
+  .dots-all:has(> :nth-child(57)){--dot:28px}
+}
+
+/* Туширилган, Кириб келган, Қолган */
+.kpi > .kpi-row{margin:20px 0 24px}
+.kpi > .share{margin-top:auto}
+.kpi > .share + .t-sub{margin-top:10px;font-size:13px}
+/* No bar (nobody has entered the period, or one МТУ in scope): the caption alone, where the bar's would be. */
+.kpi > .kpi-row + .t-sub{margin-top:auto;font-size:13px}
+/* A sum of zeros: the bar's empty track. */
+.share:not(:has(> span)){border-radius:6px;background:var(--panel)}
+/* One МТУ in scope: its stations share its colour, so the segments alternate two shades and the legend names
+   them in bar order. */
+.n-split > .share > span:nth-child(even),.n-split > .legend > li:nth-child(even) > .key{background:var(--deep)}
+.n-qol > .kpi-row{margin-bottom:0}
+.n-qol > .share{height:16px}
+.n-qol > .share > span:first-child{border-top-left-radius:8px;border-bottom-left-radius:8px}
+.n-qol > .share > span:last-child{border-top-right-radius:8px;border-bottom-right-radius:8px}
+.n-qol > .share,.n-qol > .share + .t-sub{margin-top:22px}
+.n-qol > .legend{margin-top:18px}
+
+/* МТУ tiles: the chip sits on the bottom edge whatever the numbers above it. */
+.n-mtu > :last-child{margin-top:auto}
+/* As the mockup's .mt-stats: the three numbers keep one line; a tile too narrow wraps «Кириб келган» instead. */
+.n-mtu .stat-row{display:grid;grid-template-columns:repeat(3,minmax(min-content,max-content))}
+
+/* «Топширмаганлар»: one tinted column per МТУ, up to three to a row, every row filled. */
+.n-miss > .t-head + *{margin-top:20px}
+/* «Ҳаммаси топширди» and the complete МТУs, right of the title; under it on a phone. */
+.miss-done{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.miss-cols{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+.miss-cols > .miss-col{grid-column:span 4}
+.miss-cols.n-1 > .miss-col{grid-column:1/-1}
+.miss-cols.n-2 > .miss-col,.miss-cols.n-5 > .miss-col:nth-child(n+4){grid-column:span 6}
+.miss-cols.n-4 > .miss-col{grid-column:span 3}
+.miss-col{display:flex;flex-direction:column;padding:14px 9px 9px;border-radius:var(--r-panel);background:var(--tint)}
+.miss-col h3{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 12px;font-size:15.5px;
+  font-weight:700;letter-spacing:-.01em}
+.miss-col h3 span{color:var(--deep);font-size:13px;font-weight:600}
+.miss-col ul{display:grid;gap:6px;padding:0;list-style:none}
+.miss-col li{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:50px;padding:6px 6px 6px 13px;
+  border-radius:14px;background:rgba(255,255,255,.82);font-size:14px;font-weight:600}
+.miss-col li > span{min-width:0;line-height:1.2;overflow-wrap:break-word}
+.miss-col .btn{flex:none;padding:0 12px;font-size:13.5px}
+.miss-more{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:6px;border-radius:14px;
+  color:var(--deep);font-size:14px;font-weight:650;text-decoration:none;transition:background-color .15s}
+.miss-more:hover{background:rgba(255,255,255,.6)}
+/* One МТУ in scope, or the only МТУ with stations missing: its stations in as many columns as fit. */
+.miss-all{padding:9px}
+.miss-all ul,.miss-cols.n-1 ul{grid-template-columns:repeat(auto-fill,minmax(min(100%,16rem),1fr))}
+
+/* «Қабул қилинди» (one МТУ in scope): a card per station with its three numbers. */
+.done-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr));gap:8px;margin-top:20px;
+  padding:0;list-style:none}
+.done-grid a{display:flex;flex-direction:column;gap:12px;height:100%;padding:14px 16px 14px;border-radius:var(--r-panel);
+  background:var(--panel);text-decoration:none;transition:box-shadow .15s}
+.done-grid a:hover{box-shadow:inset 0 0 0 2px var(--deep)}
+.done-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.done-top b{min-width:0;font-size:15.5px;font-weight:650;line-height:1.25;overflow-wrap:break-word}
+.done-top .chip{flex:none;min-height:26px;padding:2px 9px;font-size:12.5px}
+.done-stats{display:flex;gap:18px}
+.done-stats div{display:flex;flex-direction:column-reverse;gap:4px}
+.done-stats dt{color:var(--ink-3);font-size:12px;line-height:1.2}
+.done-stats dd{font-size:22px;font-weight:750;letter-spacing:-.03em;line-height:1}
+.done-stats .is-negative dd{color:var(--alert)}
+/* Typed by hand: the outlined amber of .chip-warn around the number. */
+.done-stats .is-override dd{align-self:flex-start;margin:-3px -7px;padding:3px 7px;border-radius:9px;
+  box-shadow:inset 0 0 0 1.5px var(--warn);color:var(--warn)}
+
+/* «Охирги 14 сутка»: inline SVG lines (app.css .chart) over HTML grid lines and labels. --x and --y place a
+   day or a value in % of the plot. */
+.trend-sum{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:16px}
+.trend-sum div{display:flex;flex-direction:column}
+.trend-sum b{font-size:28px;font-weight:750;letter-spacing:-.03em;line-height:1.05}
+.trend-sum span{color:var(--ink-3);font-size:13px}
+.trend{display:flex;flex:1;flex-direction:column;margin-top:24px;padding-left:34px}
+/* Grows with the tile beside it, but not past a readable height. */
+.plot{flex:1;height:auto;min-height:210px;max-height:320px;margin-right:46px}
+.grid-y{position:absolute;inset:0}
+.grid-y div{position:absolute;top:calc(var(--y) * 1%);right:0;left:0;border-top:1px solid var(--line)}
+.grid-y div:last-child{border-top-color:var(--line-2)}
+.grid-y span{position:absolute;top:-9px;right:calc(100% + 10px);color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+.hits i{position:absolute;top:0;bottom:0;left:calc(var(--x) * 1%);width:7.7%;transform:translateX(-50%);cursor:crosshair}
+.hits i:hover{background:linear-gradient(to right,transparent calc(50% - 1px),var(--line-2) calc(50% - 1px),
+  var(--line-2) calc(50% + 1px),transparent calc(50% + 1px))}
+.pt{position:absolute;top:calc(var(--y) * 1%);left:calc(var(--x) * 1%);width:12px;height:12px;margin:-6px 0 0 -6px;
+  border-radius:50%;background:currentColor;box-shadow:0 0 0 2.5px var(--surface);pointer-events:none}
+/* The last day, still being entered: its sums so far, under its own end of the axis. */
+/* Proportional figures here and under the axis: Onest's tabular «1» is padded («161» read «1 61»). */
+.pt b{position:absolute;top:50%;left:calc(100% + 10px);font-size:13px;font-weight:700;white-space:nowrap;
+  transform:translateY(calc(-50% + 8px))}
+.pt.above b{transform:translateY(calc(-50% - 8px))}
+.pt.series-2 b{color:var(--ink-2)}
+.pt.series-1 b{color:var(--ink)}
+.xlab{display:flex;justify-content:space-between;margin:10px 46px 0 0;color:var(--ink-3);font-size:12px}
+.xlab span{display:flex;justify-content:center;width:0;white-space:nowrap}
+.xlab span:nth-last-child(even){visibility:hidden}
+
+/* «Эътибор талаб» */
+.n-att > .t-sub{margin-top:6px}
+.att-list{display:grid;gap:8px;margin-top:18px;padding:0;list-style:none}
+.att{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:4px 14px;padding:14px;
+  border-radius:var(--r-panel);background:var(--panel)}
+.att > .ibox{grid-row:1/3;width:40px;height:40px;border-radius:13px}
+.att > .ibox .ico{width:19px;height:19px}
+.att-name{font-size:15.5px;font-weight:650;line-height:1.25}
+.att-meta{grid-column:2;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--ink-3);font-size:13.5px}
+.att-meta .chip{min-height:24px;padding:2px 9px;font-size:12.5px}
+.att-val{grid-column:3;grid-row:1/3;display:flex;align-items:center;gap:14px}
+.att-val .v{line-height:1;text-align:right}
+.att-val .v b{display:block;font-size:26px;font-weight:750;letter-spacing:-.03em}
+.att-val .v span{color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+.att-val .is-negative b{color:var(--alert)}
+.att-more{margin-top:8px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--line)}
+.att-more > summary{color:var(--ink-2)}
+.att-more > .att-list{margin-top:0}
+/* Open, «Эътибор талаб» grows far below the chart beside it: the chart's tile keeps its own height. */
+.now:has(.att-more[open]) > .n-trend{align-self:start}
+
+/* =========================================================
+   «Кунлик жадвал»
+   ========================================================= */
+/* The table runs edge to edge in its tile; the legend is the tile's head. */
+.daily{padding:0;overflow:hidden}
+.daily > .legend{padding:20px 26px 18px}
+.daily > .table-wrap{border-radius:0;box-shadow:inset 0 1px 0 var(--line)}
+/* The whole roster is thousands of pixels: the table scrolls in its own box, under its two header rows (the night
+   and the day columns have the same titles). Paper repeats the header on every page instead. */
+/* overflow:clip keeps the rounded corners without a scroll container, so the header sticks to the page itself.
+   Phones only scroll the table sideways (app.css .table-wrap): an inner vertical scroll box traps the thumb. */
+@media screen and (min-width:1021px){
+  .daily{overflow:clip}
+  .daily > .table-wrap{overflow:visible}
+  .daily .table thead{position:sticky;top:0;z-index:2}
+}
+.daily .table thead th{vertical-align:bottom}
+.daily .table thead th[colspan]{vertical-align:middle;color:var(--ink);font-size:13px;font-weight:650}
+.period-key{display:inline-flex;align-items:center;gap:6px}
+/* Row numbers line up on nothing: proportional figures, as Onest's tabular «1» is padded («11» read «1 1»). */
+.daily .table tbody > tr:not(.group):not(.total) > td:first-child{width:3.5rem;color:var(--ink-3);font-weight:500;
+  font-variant-numeric:normal}
+.daily .table tr.group > th{padding-block:14px 10px}
+.daily .table tbody > tr:not(.group):not(.total):hover{--row-bg:var(--panel)}
+/* A period the station does not expect (switched off): quieter than «Киритилмаган». */
+.daily .table td.is-off,.daily .legend .is-off{color:var(--ink-3);font-weight:500}
+/* The grand «Жами» closes the table on the night colour. */
+.daily .table tfoot tr.total{--row-bg:var(--night);color:#fff}
+.daily .table tfoot tr.total > *{border-right-color:rgba(255,255,255,.12)}
+
+/* =========================================================
+   One station's period (staff/entry.html)
+   ========================================================= */
+.e-who{display:flex;align-items:center;gap:16px;min-width:0}
+.e-who .st-av{width:60px;height:60px;border-radius:20px;font-size:26px}
+.e-who h1{overflow-wrap:anywhere}
+.e-who .t-sub{margin-top:8px}
+/* The period card of the station's form: night or day, and the stock it starts from. */
+.e-opening{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;
+  border-top:1px solid var(--line)}
+.e-opening span{color:var(--ink-3);font-size:16px}
+.e-opening b{font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1}
+.e-period .t-title{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.num-field > .errorlist{padding:10px 4px 0}
+/* As on the station's form: no sum line until there is one, and an unknown «Қолган» is a quiet dash. */
+.result .t-sub:empty{display:none}
+.result.is-blank .big{color:var(--ink-3);font-weight:400}
+.e-actions{display:grid;gap:10px}
+
+/* «Ўзгаришлар тарихи»: who and when on a line, what changed under it, each change joined to the next. */
+.e-history{align-self:start}
+.e-history > .empty{margin-top:20px}
+.timeline{display:grid;margin-top:20px;padding:0;list-style:none}
+.timeline > li{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding-bottom:24px}
+.timeline > li:last-child{padding-bottom:0}
+.timeline > li:not(:last-child)::before{content:"";position:absolute;top:52px;bottom:8px;left:21px;width:2px;
+  border-radius:1px;background:var(--line)}
+.timeline .st-av{width:44px;height:44px;border-radius:15px;font-size:18px}
+.tl-head{display:flex;flex-wrap:wrap;align-items:baseline;align-content:center;gap:2px 10px;min-height:44px}
+.tl-head b{font-weight:650}
+.tl-head span{color:var(--ink-3);font-size:13.5px}
+.tl-diff{display:grid;gap:8px;margin-top:6px;padding:12px 16px;border-radius:14px;background:var(--panel)}
+.tl-diff > div{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px}
+.tl-diff dt{color:var(--ink-2);font-size:14px}
+.tl-diff dd{font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tl-diff .was{color:var(--ink-3)}
+.tl-diff dd b{font-weight:750}
+.timeline .muted.small{margin-top:8px}
+
+/* =========================================================
+   Narrower screens (the same steps as app.css)
+   ========================================================= */
+@media (max-width:1180px){
+  .miss-cols.n-4 > .miss-col{grid-column:span 6}
+}
+@media (max-width:1020px){
+  .miss-cols > .miss-col:nth-child(n){grid-column:span 6}
+  .miss-cols > .miss-col:nth-child(odd):last-child{grid-column:1/-1}
+}
+@media (min-width:761px) and (max-width:1020px){
+  /* app.css makes the form half and the history a full row under it: side by side instead. */
+  .entry > .span-7{grid-column:span 3}
+}
+/* An МТУ tile (a third of the row, or half of it from 761px) is narrower than the ~392px its ring and three
+   numbers take at full size. */
+@media (min-width:761px) and (max-width:900px),(min-width:1181px) and (max-width:1300px){
+  .n-mtu{padding:22px}
+  .n-mtu .t-body{gap:14px}
+  .n-mtu .ring,.n-mtu .seal{width:76px;height:76px}
+  .n-mtu .ring b{font-size:24px}
+  .n-mtu .stat-row{column-gap:12px}
+  .n-mtu .stat-row .stat-num{font-size:26px}
+}
+@media (max-width:760px){
+  .n-hero{padding:22px 20px}
+  .n-hero > .kpi-row{margin-top:14px}
+  .kpi > .kpi-row{margin:14px 0 18px}
+  .n-qol > .share,.n-qol > .share + .t-sub{margin-top:18px}
+  .n-qol > .kpi-row > .t-sub{flex-basis:100%;margin-left:0}
+  .n-mtu{padding:18px}
+  .miss-done{justify-content:flex-start;margin-left:0}
+  .miss-cols > .miss-col:nth-child(n){grid-column:1/-1}
+  .miss-col li{min-height:54px}
+  .att{padding:14px 12px}
+  .att-val{grid-column:2/4;grid-row:3;justify-content:space-between;margin-top:8px}
+  .att-val .v{text-align:left}
+  .att-val .v b{display:inline;margin-right:6px}
+  .trend-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .trend-sum b{font-size:22px}
+  .trend{padding-left:30px}
+  .plot{min-height:180px;margin-right:38px}
+  .xlab{margin-right:38px}
+  .xlab span:nth-last-child(n){visibility:hidden}
+  .xlab span:nth-last-child(4n+1){visibility:visible}
+}
+@media print{
+  /* On paper the table is no box: no frame, no corners, and it breaks across pages. */
+  .daily{padding:0;border:0;border-radius:0;overflow:visible;break-inside:auto}
+  .daily > .legend{padding:0 0 8px}
+  /* Paper drops the night fill: the grand total goes back to black on white. */
+  .daily .table tfoot tr.total{--row-bg:#fff;color:#000}
+  .daily .table tfoot tr.total > *{border-right-color:var(--line)}
+}

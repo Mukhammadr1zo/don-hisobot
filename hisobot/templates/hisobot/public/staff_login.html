@@ -1,20 +1,46 @@
 {% extends "hisobot/base.html" %}
+{% load static %}
+{% comment %}
+Staff login. The head tile carries the start page's train, one wagon per МТУ (sort 1–6): this door is for all of them
+and the Бошқарма. The PIN page pairs a head tile and a form tile the same way.
+{% endcomment %}
 {% block title %}Кириш · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/public.css' %}">{% endblock %}
+{% block top_actions %}<a class="back push" href="{% url 'home' %}">Орқага</a>{% endblock %}
 
 {% block content %}
-<a class="back" href="{% url 'home' %}">Орқага</a>
-<h1>МТУ / Бошқарма учун кириш</h1>
-{% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
-<form method="post" novalidate class="stack">
-  {% csrf_token %}
-  <div class="field">
-    <label for="login">Логин</label>
-    <input type="text" id="login" name="username" value="{{ username }}" autocomplete="username" autocapitalize="none" spellcheck="false"{% if not username %} autofocus{% endif %}>
-  </div>
-  <div class="field">
-    <label for="parol">Парол</label>
-    <input type="password" id="parol" name="password" autocomplete="current-password"{% if username %} autofocus{% endif %}>
-  </div>
-  <button class="btn btn-primary btn-block">Кириш</button>
-</form>
+<div class="bento">
+  <section class="tile login-hero" aria-labelledby="kirish-title">
+    <div class="in">
+      <span class="ibox ibox-lg"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></span>
+      <h1 id="kirish-title">МТУ / Бошқарма учун кириш</h1>
+      <p class="t-sub">Логин ва парол билан</p>
+    </div>
+    <div class="train" aria-hidden="true">
+      <svg viewBox="0 0 1032 84" overflow="visible">
+        <use href="#wagon" class="mtu-1" x="0" y="0" width="160" height="80"/>
+        <use href="#wagon" class="mtu-2" x="174" y="0" width="160" height="80"/>
+        <use href="#wagon" class="mtu-3" x="348" y="0" width="160" height="80"/>
+        <use href="#wagon" class="mtu-4" x="522" y="0" width="160" height="80"/>
+        <use href="#wagon" class="mtu-5" x="696" y="0" width="160" height="80"/>
+        <use href="#wagon" class="mtu-6" x="870" y="0" width="160" height="80"/>
+        <rect x="-200" y="73.5" width="1500" height="3" fill="var(--ink)"/>
+      </svg>
+    </div>
+  </section>
+
+  <form method="post" novalidate class="tile stack">
+    {% csrf_token %}
+    {% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
+    <div class="field">
+      <label for="login">Логин</label>
+      <input type="text" id="login" name="username" value="{{ username }}" autocomplete="username" autocapitalize="none" spellcheck="false"{% if not username %} autofocus{% endif %}>
+    </div>
+    <div class="field">
+      <label for="parol">Парол</label>
+      <input type="password" id="parol" name="password" autocomplete="current-password"{% if username %} autofocus{% endif %}>
+    </div>
+    <button class="btn btn-ink btn-lg btn-block">Кириш<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+  </form>
+</div>
 {% endblock %}

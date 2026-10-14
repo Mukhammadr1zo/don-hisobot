@@ -32,6 +32,7 @@ def home(request):
     cards = [
         {
             "pe": pe,
+            "night": periods.label(pe)[1] == 1,  # the dark card
             "entry": entries.get(pe),
             "deadline": pe + periods.STATION_WINDOW,
             "refusal": _refusal(station, pe, now),
@@ -45,7 +46,9 @@ def home(request):
     for day in (latest - timedelta(days=n) for n in range(HISTORY_DAYS)):
         (row,) = reports.daily_rows(scope, day, now=now)
         history.append((day, (row.night, row.day), row))
-    context = {"now": now, "cards": cards, "next_open": periods.next_end(ends[0]), "history": history}
+    # The longest «Туширилган» bar in the history is the week's largest value.
+    top = max((cell.entry.unloaded for _, cells, _ in history for cell in cells if cell.entry), default=0)
+    context = {"now": now, "cards": cards, "next_open": periods.next_end(ends[0]), "history": history, "top": top}
     return render(request, "hisobot/station/home.html", context)
 
 
@@ -105,6 +108,7 @@ def entry(request, pe):
         form = EntryForm(initial=initial, require_opening=station.opening_at is None)
     context = {
         "pe": pe,
+        "night": periods.label(pe)[1] == 1,
         "form": form,
         "error": error,
         "existing": existing,

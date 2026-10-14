@@ -1,18 +1,6 @@
-{% comment %}Rendered without a request or database: no base.html, no tags that need either.{% endcomment %}{% load static %}<!doctype html>
-<html lang="uz-Cyrl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>Хатолик · Дон ҳисоботи</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="{% static 'hisobot/app.css' %}">
-</head>
-<body>
-<main class="page narrow">
-<h1>Хатолик юз берди</h1>
-<p>Сўров бажарилмади. Бироздан сўнг қайта уриниб кўринг.</p>
-<div class="actions"><a class="btn btn-primary" href="/">Бош саҳифа</a></div>
-</main>
-</body>
-</html>
+{% extends "_error.html" %}
+{% comment %}Rendered without a request or database: _error.html needs neither.{% endcomment %}
+{% block title %}Хатолик{% endblock %}
+{% block code %}500{% endblock %}
+{% block heading %}Хатолик юз берди{% endblock %}
+{% block text %}Сўров бажарилмади. Бироздан сўнг қайта уриниб кўринг.{% endblock %}

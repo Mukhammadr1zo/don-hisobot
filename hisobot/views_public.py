@@ -23,13 +23,31 @@ PIN_ERRORS = {
 STAFF_ERRORS = {access.Login.BAD: "Логин ёки парол нотўғри", access.Login.THROTTLED: TOO_MANY}
 
 
+def _open_now(now):
+    """The «Ҳозир очиқ» tile of the visitor pages: the newest period stations can enter, and the clock."""
+    pe, clock = periods.last_ended(now), periods.local(now)
+    return {
+        "now": now,
+        "pe": pe,
+        "night": periods.label(pe)[1] == 1,
+        "deadline": pe + periods.STATION_WINDOW,
+        "next_open": periods.next_end(pe),
+        "hand": (clock.hour * 60 + clock.minute) / 4,  # degrees on the 24-hour dial, midnight at the top
+    }
+
+
 def home(request):
     if access.current_station(request):
         return redirect("station_home")
     if request.user.is_authenticated:
         return redirect("staff_now")
-    mtus = Mtu.objects.order_by("sort", "name").annotate(active=Count("stations", filter=Q(stations__active_to=None)))
-    return render(request, "hisobot/public/home.html", {"mtus": mtus})
+    mtus = list(
+        Mtu.objects.order_by("sort", "name").annotate(active=Count("stations", filter=Q(stations__active_to=None)))
+    )
+    for mtu in mtus:
+        mtu.dots = range(mtu.active)  # one dot per active station on the МТУ's tile
+    context = {"mtus": mtus, "total": sum(mtu.active for mtu in mtus), **_open_now(timezone.now())}
+    return render(request, "hisobot/public/home.html", context)
 
 
 # A Russian keyboard has no ў қ ғ ҳ: operators type у к г х, so the two spellings match alike.
@@ -42,12 +60,14 @@ def _fold(text):
 
 def mtu_stations(request, mtu_id):
     mtu = get_object_or_404(Mtu, pk=mtu_id)
-    stations = mtu.stations.filter(active_to=None).order_by("sort", "name")
+    stations = list(mtu.stations.filter(active_to=None).order_by("sort", "name"))
+    total = len(stations)
     query = request.GET.get("q", "").strip()
     if query:
         # In Python: casefold() knows Cyrillic whatever the database's locale is; an MTU has a few hundred rows.
         stations = [s for s in stations if _fold(query) in _fold(s.name)]
-    return render(request, "hisobot/public/mtu.html", {"mtu": mtu, "stations": stations, "query": query})
+    context = {"mtu": mtu, "stations": stations, "query": query, "total": total, **_open_now(timezone.now())}
+    return render(request, "hisobot/public/mtu.html", context)
 
 
 def station_login(request, station_id):

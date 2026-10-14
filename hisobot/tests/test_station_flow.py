@@ -161,6 +161,21 @@ class StationFlowTests(TestCase):
         self.assertContains(self.client.get(url, {"q": "чукур"}), "Чуқурсой")
         self.assertEqual(self.client.get(reverse("mtu_stations", args=[999999])).status_code, 404)
 
+    def test_visitor_pages_show_the_period_open_now(self):
+        # At 09:05 the night period of 12.10 has just ended: stations enter it until 13.10 08:00.
+        home = self.client.get(reverse("home")).content.decode()
+        self.assertIn("Тунги давр · 12.10.2026", home)
+        self.assertIn("13.10 08:00 гача киритиш мумкин", home)
+        self.assertIn("Кейинги давр 20:00 да очилади", home)
+        self.assertIn("rotate(136.25 80 80)", home)  # the dial's hand: 09:05 is minute 545 of 1440
+        self.assertInHTML('<span class="cnt"><b>2</b> станция</span>', home)  # Тошкент: Чуқурсой, Хамза
+        self.assertInHTML('<span class="t-sub">3 станция</span>', home)  # every active station
+
+        picker = self.client.get(reverse("mtu_stations", args=[self.mtu.pk]), {"q": "хам"}).content.decode()
+        self.assertIn("13.10 08:00 гача киритиш мумкин", picker)
+        self.assertInHTML('<p class="meta"><b>2</b> станция</p>', picker)  # the МТУ's stations, found or not
+        self.assertInHTML('<span class="count" id="soni">1</span>', picker)  # the ones found
+
     def test_staff_login(self):
         User.objects.create_user("toshkent", password="secret-pass", mtu=self.mtu)
         url = reverse("staff_login")
@@ -200,11 +215,11 @@ class StationFlowTests(TestCase):
         self.login()
         page = self.client.get(reverse("station_home")).content.decode()
 
-        self.assertIn("Сервер вақти: 12.10.2026 09:05", page)
+        self.assertInHTML('<p class="s-time"><span>Сервер вақти</span><b>12.10.2026 · 09:05</b></p>', page)
         self.assertLess(page.index("11.10 20:00 – 12.10 08:00"), page.index("11.10 08:00 – 11.10 20:00"))
         self.assertLess(page.index(self.entry_url(NIGHT)), page.index(self.entry_url(DAY_BEFORE)))
         self.assertLess(page.index("13.10 08:00 гача"), page.index("12.10 20:00 гача"))
-        self.assertIn("20:00 да очилади", page)
+        self.assertIn("Кейинги давр <b>20:00</b> да очилади", page)
         self.assertNotIn(self.entry_url(TONIGHT), page)
 
     def test_station_home_shows_saved_numbers_and_the_last_seven_days(self):
@@ -215,15 +230,19 @@ class StationFlowTests(TestCase):
 
         self.assertContains(response, "Қабул қилинди 09:05", count=1)
         self.assertContains(response, "Топширилмаган", count=1)
-        # Report days 12.10 back to 06.10; the day period of 12.10 has not ended, so it is blank, not missing.
-        self.assertContains(response, '<th scope="row"', count=7)
+        # Report days 12.10 back to 06.10, one <tbody> each: a row per period, the day's total under the date.
+        # The day period of 12.10 has not ended, so it is blank, not missing (no is-missing).
+        self.assertContains(response, '<th scope="rowgroup"', count=7)
         self.assertContains(response, "06.10.2026")
         self.assertNotContains(response, "05.10.2026")
         self.assertInHTML(
-            """<tr><th scope="row" class="nowrap">12.10.2026</th>
-            <td class="num">5</td><td class="num">3</td><td class="num">8</td>
-            <td class="num">—</td><td class="num">—</td><td class="num">—</td>
-            <td class="num">5</td></tr>""",
+            """<tbody>
+            <tr><th scope="rowgroup" rowspan="2">12.10.2026<small>Жами 5</small></th>
+            <td class="per"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-moon"/></svg><span class="sr">Тунги давр</span></td>
+            <td class="num bar" style="--w:100">5</td><td class="num">3</td><td class="num q">8</td></tr>
+            <tr><td class="per"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-sun"/></svg><span class="sr">Кундузги давр</span></td>
+            <td class="num">—</td><td class="num">—</td><td class="num q">—</td></tr>
+            </tbody>""",
             response.content.decode(),
         )
 
@@ -309,6 +328,12 @@ class StationFlowTests(TestCase):
         self.assertRedirects(response, reverse("station_home"))
         entry = Entry.objects.get()
         self.assertEqual((entry.unloaded, entry.arrived, entry.remaining), (0, 0, 10))
+        self.assertContains(
+            self.client.get(reverse("station_home")),
+            '<td class="zero" colspan="2">Ҳаракат бўлмади <span class="nowrap">(0 / 0)</span></td>',
+            count=1,
+            html=True,
+        )
 
     def test_empty_fields_are_refused(self):
         self.login()

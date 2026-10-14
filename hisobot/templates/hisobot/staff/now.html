@@ -1,67 +1,271 @@
 {% extends "hisobot/base.html" %}
-{% load hisobot_extras %}
+{% load static hisobot_extras %}
 {% comment %}
-One period. Boshqarma without ?mtu=: a card per MTU, each opening that MTU's list.
-One MTU in scope: who has not submitted (first, with «Киритиш»), then who has, with the numbers.
+«Ҳозир»: one period as a bento (design-mockups/c-rangli/dashboard.html). `rows` is one views_staff.MtuNow per МТУ
+in scope, `total` sums them. Boshqarma without ?mtu=: six МТУ tiles, each opening that МТУ's own «Ҳозир», and the
+first stations of each МТУ that have not submitted. One МТУ in scope: every station that has not submitted (with
+«Киритиш») and every one that has (with its numbers) take the place of the МТУ tiles, and «Қолган» names the
+stations that hold the most (`stock_top`, in the order of the bar).
 {% endcomment %}
 {% block title %}Ҳозир · {{ block.super }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/staff.css' %}">{% endblock %}
 
 {% block content %}
 {% if mtu and request.user.is_boshqarma %}<a class="back" href="?pe={{ pe|slug }}">Орқага</a>{% endif %}
-<h1>{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %}</h1>
-<nav class="pager" aria-label="Давр">
-  <a class="btn" href="{{ prev_url }}" aria-label="Олдинги давр"></a>
+<section class="pagehead">
   <div>
-    <h2>{{ pe|period_name }} · {{ pe|d }}</h2>
-    <p class="card-sub">{{ pe|period_range }}</p>
+    <h1>{% if mtu %}{{ mtu.name }} МТУ{% else %}Барча МТУ{% endif %}</h1>
+    <p class="t-sub">{% if not mtu %}{{ rows|length }} МТУ · {% endif %}{{ total.sub.expected }} станция</p>
   </div>
-  {% if next_url %}<a class="btn" href="{{ next_url }}" aria-label="Кейинги давр"></a>{% else %}<span class="btn" aria-disabled="true"></span>{% endif %}
-</nav>
+  <nav class="pager" aria-label="Давр">
+    <a class="btn" href="{{ prev_url }}" aria-label="Олдинги давр"></a>
+    <div>
+      <span class="ibox ibox-round{% if night %} ibox-night{% endif %}"><svg class="ico" aria-hidden="true"><use href="#i-{% if night %}moon{% else %}sun{% endif %}"/></svg></span>
+      <div><h2>{{ pe|period_name }} · {{ pe|d }}</h2><p>{{ pe|period_range }}</p></div>
+    </div>
+    {% if next_url %}<a class="btn" href="{{ next_url }}" aria-label="Кейинги давр"></a>{% else %}<span class="btn" aria-disabled="true"></span>{% endif %}
+  </nav>
+</section>
 
-{% if cards %}
-<div class="card-grid">
-  {% for card in cards %}
-  <a class="card" href="?mtu={{ card.mtu.pk }}&amp;pe={{ pe|slug }}"><h3 class="card-title">{{ card.mtu.name }}</h3><div class="stat"><span class="stat-num">{{ card.submitted }}<small> / {{ card.expected }}</small></span><span class="stat-cap">топширди</span></div>{% if card.expected %}<progress value="{{ card.submitted }}" max="{{ card.expected }}"></progress>{% endif %}</a>
-  {% endfor %}
-</div>
-{% else %}
-<div class="card">
-  <div class="stat"><span class="stat-num">{{ sub.submitted }}<small> / {{ sub.expected }}</small></span><span class="stat-cap">топширди</span></div>
-  {% if sub.expected %}<progress value="{{ sub.submitted }}" max="{{ sub.expected }}"></progress>{% endif %}
-</div>
-{# Each row keeps only narrow items beside the name: on a 360px phone a wide badge squeezes the name to one letter a line. #}
-{% if sub.missing %}
-<h2>Топширилмаган <span class="badge-warn">{{ sub.missing|length }}</span></h2>
-<ul class="list">
-  {% for station in sub.missing %}
-  <li><div><span>{{ station.name }}</span><a class="btn btn-sm btn-primary" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></div></li>
-  {% endfor %}
-</ul>
-{% elif sub.done %}
-<p class="empty">Ҳамма станциялар топширди</p>
-{% else %}
-<p class="empty">Бу давр учун кутилган станция йўқ</p>
-{% endif %}
-{% if sub.done %}
-<h2>Қабул қилинди <span class="badge-ok">{{ sub.done|length }}</span></h2>
-<p class="muted small">Туширилган · Кириб келган · Қолган</p>
-<ul class="list">
-  {% for e in sub.done %}
-  <li><a href="{% url 'staff_entry' e.station.pk pe|slug %}"><span>{{ e.station.name }}<br><small class="muted">{{ e.unloaded }} · {{ e.arrived }} · <span{% if e.remaining < 0 %} class="is-negative"{% endif %}>{{ e.remaining }}</span></small></span><span class="badge-ok">{{ e.updated_at|t }}</span></a></li>
-  {% endfor %}
-</ul>
-{% endif %}
-{% endif %}
+<div class="bento now{% if mtu %} mtu-{{ mtu.sort }}{% endif %}">
+  <article class="tile tile-night span-6 row-2 n-hero" aria-labelledby="n-sub">
+    <div class="t-head">
+      <h2 class="t-title" id="n-sub">Топширди</h2>
+      {% if deadline %}<span class="chip chip-wait push"><svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg>{{ deadline|date:"d.m H:i" }} гача киритиш мумкин</span>{% endif %}
+    </div>
+    <div class="kpi-row">
+      <span class="big big-xl">{{ total.sub.submitted }}</span>
+      <span class="big big-md muted">/ {{ total.sub.expected }}</span>
+      <span class="big big-md push">{{ total.sub.submitted|percent:total.sub.expected }}%</span>
+    </div>
+    <p class="muted">{% if total.sub.missing %}<b>{{ total.sub.missing|length }} станция</b> ҳали топширмаган{% elif total.sub.expected %}Ҳамма станциялар топширди{% else %}Бу давр учун кутилган станция йўқ{% endif %}</p>
+    <ul class="legend" aria-hidden="true"><li><i class="key"></i>топширди</li><li><i class="key o"></i>топширмаган</li></ul>
+    {% if mtu %}
+    <span class="dots dots-all mtu-{{ mtu.sort }}" aria-hidden="true">{% for e in total.sub.done %}<i></i>{% endfor %}{% for s in total.sub.missing %}<i class="o"></i>{% endfor %}</span>
+    {% else %}
+    <div class="dot-rows" role="list" aria-label="МТУ бўйича топширганлар">
+      {% for row in rows %}
+      <div class="dot-row mtu-{{ row.sub.mtu.sort }}" role="listitem">
+        <span>{{ row.sub.mtu.name }}</span>
+        <span class="dots" aria-hidden="true">{% for e in row.sub.done %}<i></i>{% endfor %}{% for s in row.sub.missing %}<i class="o"></i>{% endfor %}</span>
+        <span><b>{{ row.sub.submitted }}</b>/{{ row.sub.expected }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </article>
 
-<h2>Эътибор талаб</h2>
-<p class="muted">Охирги {{ attention_days }} кун: қўлда ўзгартирилган ва манфий қолдиқлар.</p>
-{% if attention %}
-<ul class="list">
-  {% for e in attention %}
-  <li><div><span>{{ e.station.name }}<br><small class="muted">{% if not mtu %}{{ e.station.mtu.name }} МТУ · {% endif %}{{ e.period_end|d }} {{ e.period_end|period_name|lower }}{% if e.overridden %} · ҳисобланган: {{ e.remaining_calc }}{% endif %}</small></span><span class="nowrap{% if e.remaining < 0 %} is-negative{% endif %}">{{ e.remaining }}</span><a class="btn btn-sm" href="{% url 'staff_entry' e.station.pk e.period_end|slug %}">Тузатиш</a></div></li>
+  {# A bar only splits by МТУ: one МТУ's stations would be unnamed slivers; «Қабул қилинди» below has their numbers. #}
+  {# «вагон» only beside a number: after a bare dash it would read as a loading bar. #}
+  <article class="tile span-3 phone-half kpi">
+    <h2 class="t-title">Туширилган</h2>
+    {% if total.unloaded is None %}
+    <div class="kpi-row"><span class="big muted">—</span></div>
+    <p class="t-sub">Ҳали киритилмаган</p>
+    {% else %}
+    <div class="kpi-row"><span class="big">{{ total.unloaded }}</span><span class="unit-word">вагон</span></div>
+    {% if not mtu %}
+    <div class="share" role="img" aria-label="МТУ бўйича:{% for row in rows %} {{ row.sub.mtu.name }} {{ row.unloaded|num }}{% if not forloop.last %},{% endif %}{% endfor %}">{% for row in rows %}{% if row.unloaded %}<span class="mtu-{{ row.sub.mtu.sort }}" style="--v:{{ row.unloaded }}" title="{{ row.sub.mtu.name }} · {{ row.unloaded }}"></span>{% endif %}{% endfor %}</div>
+    <p class="t-sub">МТУ бўйича</p>
+    {% else %}
+    <p class="t-sub">{{ total.sub.submitted }} станция бўйича</p>
+    {% endif %}
+    {% endif %}
+  </article>
+
+  <article class="tile span-3 phone-half kpi">
+    <h2 class="t-title">Кириб келган</h2>
+    {% if total.arrived is None %}
+    <div class="kpi-row"><span class="big muted">—</span></div>
+    <p class="t-sub">Ҳали киритилмаган</p>
+    {% else %}
+    <div class="kpi-row"><span class="big">{{ total.arrived }}</span><span class="unit-word">вагон</span></div>
+    {% if not mtu %}
+    <div class="share" role="img" aria-label="МТУ бўйича:{% for row in rows %} {{ row.sub.mtu.name }} {{ row.arrived|num }}{% if not forloop.last %},{% endif %}{% endfor %}">{% for row in rows %}{% if row.arrived %}<span class="mtu-{{ row.sub.mtu.sort }}" style="--v:{{ row.arrived }}" title="{{ row.sub.mtu.name }} · {{ row.arrived }}"></span>{% endif %}{% endfor %}</div>
+    <p class="t-sub">МТУ бўйича</p>
+    {% else %}
+    <p class="t-sub">{{ total.sub.submitted }} станция бўйича</p>
+    {% endif %}
+    {% endif %}
+  </article>
+
+  <article class="tile span-6 kpi n-qol{% if mtu %} n-split{% endif %}">
+    <div class="t-head">
+      <h2 class="t-title">Қолган</h2>
+      <span class="t-sub">Юк туширишда қолган вагонлар сони</span>
+    </div>
+    {# Stock of a station with no entry for the period is carried from an earlier one: the caption says how many. #}
+    <div class="kpi-row">{% if total.remaining is None %}<span class="big muted">—</span>{% else %}<span class="big">{{ total.remaining }}</span><span class="unit-word">вагон</span>{% endif %}{% if total.carried %}<span class="t-sub push">Кўчирилган қолдиқ: {{ total.carried }} станция</span>{% endif %}</div>
+    {% if mtu %}
+    <div class="share" aria-hidden="true">{% for name, value in stock_top %}<span style="--v:{{ value }}"></span>{% endfor %}</div>
+    {% if stock_top %}<ul class="legend legend-grid" aria-label="Станциялар бўйича">
+      {% for name, value in stock_top %}<li><i class="key"></i><span>{{ name }} <b>{{ value }}</b></span></li>{% endfor %}
+    </ul>{% endif %}
+    {% else %}
+    <div class="share" role="img" aria-label="МТУ бўйича:{% for row in rows %} {{ row.sub.mtu.name }} {{ row.remaining|num }}{% if not forloop.last %},{% endif %}{% endfor %}">{% for row in rows %}{% if row.remaining > 0 %}<span class="mtu-{{ row.sub.mtu.sort }}" style="--v:{{ row.remaining }}" title="{{ row.sub.mtu.name }} · {{ row.remaining }}"></span>{% endif %}{% endfor %}</div>
+    <ul class="legend legend-grid">
+      {% for row in rows %}<li class="mtu-{{ row.sub.mtu.sort }}"><i class="key"></i>{{ row.sub.mtu.name }} <b>{{ row.remaining|num }}</b></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+
+  {% if mtu %}
+  {% with sub=total.sub %}
+  <article class="tile span-12 n-miss" aria-labelledby="n-miss">
+    <div class="t-head"><h2 class="t-title" id="n-miss">Топширмаганлар</h2><span class="count">{{ sub.missing|length }}</span></div>
+    {% if sub.missing %}
+    <div class="miss-col miss-all mtu-{{ mtu.sort }}">
+      <ul>
+        {% for station in sub.missing %}
+        <li><span>{{ station.name }}</span><a class="btn btn-sm btn-tint" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% elif sub.done %}
+    <p class="empty">Ҳамма станциялар топширди</p>
+    {% else %}
+    <p class="empty">Бу давр учун кутилган станция йўқ</p>
+    {% endif %}
+  </article>
+
+  {% if sub.done %}
+  <article class="tile span-12 n-done" aria-labelledby="n-done">
+    <div class="t-head"><h2 class="t-title" id="n-done">Қабул қилинди</h2><span class="count">{{ sub.done|length }}</span></div>
+    <ul class="done-grid">
+      {% for e in sub.done %}
+      <li><a href="{% url 'staff_entry' e.station.pk pe|slug %}">
+        <span class="done-top"><b>{{ e.station.name }}</b><span class="chip chip-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>{{ e.updated_at|t }}</span></span>
+        <dl class="done-stats">
+          <div><dt>Туширилган</dt><dd>{{ e.unloaded }}</dd></div>
+          <div><dt>Кириб келган</dt><dd>{{ e.arrived }}</dd></div>
+          {# A typed remaining is never negative (remaining_override is a positive field). #}
+          <div{% if e.remaining < 0 %} class="is-negative"{% elif e.overridden %} class="is-override"{% endif %}><dt>Қолган</dt><dd>{{ e.remaining }}{% if e.overridden %}<span class="sr">, қўлда ўзгартирилган</span>{% endif %}</dd></div>
+        </dl>
+      </a></li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+  {% endwith %}
+
+  {% else %}
+  {% for row in rows %}
+  <a class="tile tile-mtu mtu-{{ row.sub.mtu.sort }} span-4 stack n-mtu" href="?mtu={{ row.sub.mtu.pk }}&amp;pe={{ pe|slug }}">
+    <div class="t-head">
+      <div><h2 class="t-title-lg">{{ row.sub.mtu.name }}</h2><p class="t-sub">{{ row.sub.expected }} станция</p></div>
+      <span class="go push"><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+    </div>
+    <div class="t-body">
+      {% if row.sub.expected and not row.sub.missing %}
+      <svg class="seal" viewBox="0 0 96 96" role="img" aria-label="Ҳаммаси топширди"><use href="#seal"/></svg>
+      {% else %}
+      <div class="ring" style="--p:{{ row.sub.submitted|percent:row.sub.expected }}"><b>{{ row.sub.submitted }}</b><span>/ {{ row.sub.expected }}</span></div>
+      {% endif %}
+      <div class="stat-row grow">
+        <div class="stat{% if row.unloaded is None %} is-missing{% endif %}"><span class="stat-num">{{ row.unloaded|num }}</span><span class="stat-cap">Туширилган</span></div>
+        <div class="stat{% if row.arrived is None %} is-missing{% endif %}"><span class="stat-num">{{ row.arrived|num }}</span><span class="stat-cap">Кириб келган</span></div>
+        <div class="stat{% if row.remaining is None %} is-missing{% elif row.remaining < 0 %} is-negative{% endif %}"><span class="stat-num">{{ row.remaining|num }}</span><span class="stat-cap">Қолган</span></div>
+      </div>
+    </div>
+    <p>{% if row.sub.missing %}<span class="chip chip-wait"><svg class="ico" aria-hidden="true"><use href="#i-wait"/></svg>{{ row.sub.missing|length }} станция топширмаган</span>{% elif row.sub.expected %}<span class="chip chip-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>{{ row.sub.submitted }} / {{ row.sub.expected }} · Ҳаммаси топширди</span>{% else %}<span class="chip chip-wait">Бу давр учун кутилган станция йўқ</span>{% endif %}</p>
+  </a>
   {% endfor %}
-</ul>
-{% else %}
-<p class="empty">Эътибор талаб қиладиган ёзув йўқ</p>
-{% endif %}
+
+  <article class="tile span-12 n-miss" aria-labelledby="n-miss">
+    <div class="t-head">
+      <h2 class="t-title" id="n-miss">Топширмаганлар</h2><span class="count">{{ total.sub.missing|length }}</span>
+      {# One group however many МТУs are complete: their tints say which, and it wraps as one block. #}
+      {% if missing_rows and complete_rows %}<span class="push miss-done"><span class="chip chip-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Ҳаммаси топширди</span>{% for row in complete_rows %}<span class="chip chip-mtu mtu-{{ row.sub.mtu.sort }}">{{ row.sub.mtu.name }}</span>{% endfor %}</span>{% endif %}
+    </div>
+    {% if missing_rows %}
+    <div class="miss-cols n-{{ missing_rows|length }}">
+      {% for row in missing_rows %}
+      {% with n=row.sub.missing|length %}
+      {# Up to six stations in full; beyond that the first five and «Яна N та», the МТУ's own page lists them all. #}
+      <section class="miss-col mtu-{{ row.sub.mtu.sort }}" aria-label="{{ row.sub.mtu.name }} МТУ">
+        <h3>{{ row.sub.mtu.name }} <span>{{ n }}</span></h3>
+        <ul>
+          {% for station in row.sub.missing %}{% if n <= 6 or forloop.counter <= 5 %}
+          <li><span>{{ station.name }}</span><a class="btn btn-sm btn-tint" href="{% url 'staff_entry' station.pk pe|slug %}">Киритиш</a></li>
+          {% endif %}{% endfor %}
+        </ul>
+        {% if n > 6 %}<a class="miss-more" href="?mtu={{ row.sub.mtu.pk }}&amp;pe={{ pe|slug }}">Яна {{ n|add:"-5" }} та<svg class="ico ico-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>{% endif %}
+      </section>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    {% elif total.sub.expected %}
+    <p class="empty">Ҳамма станциялар топширди</p>
+    {% else %}
+    <p class="empty">Бу давр учун кутилган станция йўқ</p>
+    {% endif %}
+  </article>
+  {% endif %}
+
+  <article class="tile span-6 n-trend" aria-labelledby="n-trend">
+    <div class="t-head">
+      <h2 class="t-title" id="n-trend">Охирги 14 сутка</h2><span class="t-sub">{{ trend_from|date:"d.m" }} – {{ trend_to|date:"d.m" }}</span>
+      <ul class="legend push" aria-hidden="true">
+        <li><i class="key-ln series-1"></i>Туширилган</li>
+        <li><i class="key-ln series-2"></i>Кириб келган</li>
+      </ul>
+    </div>
+    {% if trend %}
+    <div class="trend-sum">
+      <div><b>{{ trend.lines.unloaded.total|thousands }}</b><span>туширилган, жами</span></div>
+      <div><b>{{ trend.lines.arrived.total|thousands }}</b><span>кириб келган, жами</span></div>
+      <div><b>{{ trend.average|thousands }}</b><span>туширилган, сутка ўртача</span></div>
+    </div>
+    {# The lines are drawn for the eye; the table under them has the same numbers for a screen reader. #}
+    <div class="trend" aria-hidden="true">
+      <div class="plot chart">
+        <div class="grid-y">{% for value, top in trend.ticks %}<div style="--y:{{ top }}"><span>{{ value|thousands }}</span></div>{% endfor %}</div>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          {% for run in trend.lines.arrived.runs %}<polyline class="series-2" points="{{ run }}"/>{% endfor %}
+          {% for run in trend.lines.unloaded.runs %}<polyline class="series-1" points="{{ run }}"/>{% endfor %}
+        </svg>
+        <div class="hits">{% for label, x, unloaded, arrived, missing in trend.days %}<i style="--x:{{ x }}" title="{{ label }}: туширилган {{ unloaded|num }}, кириб келган {{ arrived|num }}{% if missing %}, киритилмаган {{ missing }}{% endif %}"></i>{% endfor %}</div>
+        {% with end=trend.lines.arrived.end %}{% if end %}<span class="pt series-2{% if end.above %} above{% endif %}" style="--x:{{ end.x }};--y:{{ end.y }}"><b>{{ end.value|thousands }}</b></span>{% endif %}{% endwith %}
+        {% with end=trend.lines.unloaded.end %}{% if end %}<span class="pt series-1{% if end.above %} above{% endif %}" style="--x:{{ end.x }};--y:{{ end.y }}"><b>{{ end.value|thousands }}</b></span>{% endif %}{% endwith %}
+      </div>
+      <div class="xlab">{% for day in trend.days %}<span>{{ day.0 }}</span>{% endfor %}</div>
+      {# The last day is still being entered: not drawn (it would sink the scale), its sums so far here. #}
+      {% with p=trend.partial %}{% if p %}<p class="trend-note">{{ trend_to|date:"d.m" }}: туширилган {{ p.unloaded|thousands }}, кириб келган {{ p.arrived|thousands }}, киритилмаган {{ p.missing }}</p>{% endif %}{% endwith %}
+    </div>
+    <div class="sr">
+      <table>
+        <caption>Сутка бўйича туширилган ва кириб келган вагонлар, {{ trend_from|date:"d.m" }} – {{ trend_to|date:"d.m" }}</caption>
+        <thead><tr><th scope="col">Сана</th><th scope="col">Туширилган</th><th scope="col">Кириб келган</th><th scope="col">Киритилмаган</th></tr></thead>
+        <tbody>{% for label, x, unloaded, arrived, missing in trend.days %}<tr><th scope="row">{{ label }}</th><td>{{ unloaded|num }}</td><td>{{ arrived|num }}</td><td>{{ missing|num }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty">Бу 14 суткада ёзув йўқ</p>
+    {% endif %}
+  </article>
+
+  <article class="tile span-6 n-att" aria-labelledby="n-att">
+    <div class="t-head"><h2 class="t-title" id="n-att">Эътибор талаб</h2>{% if attention %}<span class="count count-alert">{{ attention|length }}</span>{% endif %}</div>
+    <p class="t-sub">Охирги {{ attention_days }} кун: қўлда ўзгартирилган ва манфий қолдиқлар</p>
+    {% for part in attention_parts %}
+    {% if not forloop.first %}<details class="att-more"><summary>Яна {{ part|length }} та</summary>{% endif %}
+    <ul class="att-list">
+      {% for e in part %}
+      <li class="att">
+        <span class="ibox ibox-alert"><svg class="ico" aria-hidden="true"><use href="#i-{% if e.overridden %}pencil{% else %}minus-circle{% endif %}"/></svg></span>
+        <span class="att-name">{{ e.station.name }}</span>
+        <span class="att-meta">{% if not mtu %}<span class="chip chip-mtu mtu-{{ e.station.mtu.sort }}">{{ e.station.mtu.name }} МТУ</span>{% endif %}{{ e.period_end|date:"d.m" }} · {{ e.period_end|period_name|lower }}</span>
+        <span class="att-val">
+          <span class="v{% if e.remaining < 0 %} is-negative{% endif %}"><b>{{ e.remaining }}</b><span>{% if e.overridden %}ҳисобланган {{ e.remaining_calc }}{% else %}манфий қолдиқ{% endif %}</span></span>
+          <a class="btn btn-sm" href="{% url 'staff_entry' e.station.pk e.period_end|slug %}">Тузатиш</a>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if not forloop.first %}</details>{% endif %}
+    {% empty %}
+    <p class="empty">Эътибор талаб қиладиган ёзув йўқ</p>
+    {% endfor %}
+  </article>
+</div>
 {% endblock %}
