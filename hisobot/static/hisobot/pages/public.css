@@ -39,10 +39,8 @@
 .mtu-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .mtu-top .name{min-width:0;font-size:32px;font-weight:750;letter-spacing:-.03em;line-height:1.05}
 .h-mtu .go{width:46px;height:46px;margin-top:-4px;background:var(--surface)}
-.mtu-bot{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:auto;padding-top:24px}
-/* One dot per active station, 12 to a row: up to 68 stations stay six rows. */
-.mtu-bot .dots{--cols:12;flex:1;min-width:0;max-width:210px;gap:6px}
-.cnt{color:var(--deep);font-size:14px;font-weight:600;line-height:1.1;text-align:right;white-space:nowrap}
+.cnt{align-self:flex-end;margin-top:auto;padding-top:24px;color:var(--deep);font-size:14px;font-weight:600;line-height:1.1;
+  text-align:right;white-space:nowrap}
 .cnt b{display:block;color:var(--ink);font-size:52px;font-weight:800;letter-spacing:-.045em;line-height:.9}
 
 .login{flex-direction:row;align-items:center;gap:18px;padding:22px 22px 22px 26px}
@@ -88,44 +86,46 @@
   .clock-time{font-size:54px}
   .dial{width:118px;height:118px}
 }
+/* A phone is where a station picks its МТУ and station: those come first, the period and the clock after them. */
 @media (max-width:760px){
-  .h-hero{padding:24px 0 18px}
-  .h-hero .in{padding:0 22px}
-  .h-hero h1{margin-top:22px;font-size:46px}
-  .h-hero .lead{font-size:17px}
-  .train svg{width:820px;margin-left:22px}
+  .h-hero{padding:18px 0}
+  .h-hero .in{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;padding:0 20px}
+  .h-hero h1{margin-top:0;font-size:32px}
+  .h-hero .lead{flex-basis:100%;max-width:none;margin-top:10px;font-size:15px}
+  .h-hero .train{display:none}
+  .h-open,.h-clock{order:1}
   .sky-art{top:16px;right:16px;width:60px;height:60px}
   .open-name{font-size:28px}
   .h-pick{margin:12px 2px 0}
   .h-mtu{min-height:0;padding:16px 14px 16px 16px}
   .mtu-top .name{padding-top:6px;font-size:20px}
   .h-mtu .go{width:40px;height:40px;margin-top:0}
-  .mtu-bot{flex-direction:column;align-items:stretch;gap:12px;padding-top:16px}
-  .mtu-bot .dots{--cols:10;max-width:none;gap:4px}
-  .cnt{font-size:13px;text-align:left}
+  .cnt{align-self:flex-start;padding-top:12px;font-size:13px;text-align:left}
   .cnt b{display:inline;margin-right:2px;font-size:22px;letter-spacing:-.03em}
   .login{flex-wrap:wrap;padding:18px}
   .login .t-title{font-size:17px}
   .login .btn{width:100%}
 
-  .p-head{min-height:0}
-  .p-head h1{padding-top:58px;font-size:52px}
-  .p-head .meta{margin-top:8px;font-size:16px}
-  .p-head .wagon{top:16px;width:176px}
+  /* The picker's heading is one row (МТУ, name, count), so the search box and the list reach the first screen. */
+  .picker > .p-head{flex-flow:row wrap;align-items:center;gap:4px 10px;min-height:0;padding:14px 20px}
+  .picker > .p-head .wagon{display:none}
+  .picker > .p-head .p-chip{align-self:center}
+  .picker > .p-head h1{margin-top:0;padding-top:0;font-size:28px}
+  .picker > .p-head .meta{margin:0 0 0 auto;font-size:16px}
+  .picker > .p-open{order:1}
   .p-open{grid-template-columns:auto minmax(0,1fr);gap:14px}
   .p-open b{font-size:19px}
   .p-deadline{grid-column:1/-1;max-width:none;padding:14px 0 0;border-left:0;border-top:1px solid var(--line)}
   .p-list-head{margin:10px 2px 0}
 }
-/* A 360px phone: the title stays one line, «Қўнғирот» clears its arrow. */
+/* A 360px phone: «Қўнғирот» clears its arrow. */
 @media (max-width:380px){
-  .h-hero h1{font-size:40px}
   .mtu-top{gap:8px}
   .mtu-top .name{font-size:18px}
   .h-mtu .go{width:36px;height:36px}
 }
 
-/* PIN page, after the picker's phone rules it overrides: the picker's head at its phone size, then the form tile. */
+/* PIN page, after the picker's rules it overrides: the picker's head with its wagon, at phone size, then the form tile. */
 .pin-head{min-height:0;padding-top:22px}
 .pin-head .wagon{top:16px;width:176px}
 .pin-head h1{padding-top:58px;font-size:40px}

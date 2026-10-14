@@ -6,6 +6,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from . import access, balance, periods, reports
@@ -97,6 +98,10 @@ def entry(request, pe):
     station.refresh_from_db(fields=["opening_remaining", "opening_at"])  # another device may have set it
     existing = station.entries.filter(period_end=pe).first()
     prev, gap = balance.prev_for(station, pe)
+    # The skipped period is still open to the station: the warning leads there. Closed, only the МТУ can enter it.
+    before, gap_url = periods.prev_end(pe), None
+    if gap and periods.station_can_write(before, now):
+        gap_url = reverse("station_entry", args=[periods.to_slug(before)])
     if form is None:
         initial = {"version": existing.version if existing else 0, "prev": prev}
         if existing:
@@ -113,6 +118,7 @@ def entry(request, pe):
         "error": error,
         "existing": existing,
         "gap": gap,
+        "gap_url": gap_url,
         "needs_opening": form.fields["opening"].required,
         "override_open": form["override"].value() not in (None, "") or bool(form["override"].errors),
         # Without JavaScript the page shows the saved remaining; the live sum replaces it as soon as it runs.

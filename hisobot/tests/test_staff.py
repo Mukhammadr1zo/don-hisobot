@@ -17,6 +17,12 @@ PE = tk(12, 8)  # the last ended period
 SLUG = "2026101208"
 STALE = "Маълумот ўзгарган, қайта текширинг"
 ENTER = '<a class="btn btn-sm btn-tint" href="{}">Киритиш</a>'  # «Киритиш» of a station that has not submitted
+# The labels a phone shows on the seven number cells of a daily table row (night, day, the day's total).
+LABELS = [
+    'data-label="Туширилган" data-period="Тунги"', 'data-label="Кириб келган"', 'data-label="Қолган"',
+    'data-label="Туширилган" data-period="Кундузги"', 'data-label="Кириб келган"', 'data-label="Қолган"',
+    'data-label="Жами"',
+]  # fmt: skip
 
 
 def entry_url(station, pe):
@@ -319,25 +325,31 @@ class DailyTests(StaffTestCase):
         self.entry(self.third, night, unloaded=5, arrived=3, calc=8)
         return night, day
 
+    def assertTotal(self, html, name, *values):
+        cells = "".join(f'<td class="num" {label}>{v}</td>' for label, v in zip(LABELS, values, strict=True))
+        self.assertInHTML(f'<tr class="total"><td></td><th scope="row">{name}</th>{cells}</tr>', html)
+
     def test_cells_show_override_missing_negative_and_carried(self):
         night, day = self.fill()
         self.login(self.user_a)
         html = self.client.get(reverse("staff_daily"), {"d": "2026-10-11"}).content.decode()
 
-        def cell(classes, station, pe, value):
+        def cell(classes, station, pe, value, label):
             self.assertInHTML(
-                f'<td class="{classes}"><a class="cell" href="{entry_url(station, pe)}">{value}</a></td>', html
+                f'<td class="{classes}" {label}><a class="cell" href="{entry_url(station, pe)}">{value}</a></td>', html
             )
 
-        cell("num is-override", self.first, night, 4)
-        cell("num is-negative", self.first, day, -3)
-        cell("num is-missing", self.second, night, "—")
-        cell("num is-missing is-carried", self.second, night, 10)  # the opening, carried
-        cell("num is-missing is-carried", self.third, day, 8)
-        self.assertInHTML('<td class="num">9</td>', html)  # first: both periods in
-        self.assertInHTML('<td class="num is-missing">—</td>', html)  # second: nothing at all
-        self.assertInHTML('<td class="num">5*</td>', html)  # third: the day period is missing
+        cell("num is-override", self.first, night, 4, LABELS[2])
+        cell("num is-negative", self.first, day, -3, LABELS[5])
+        cell("num is-missing", self.second, night, "—", LABELS[0])
+        cell("num is-missing", self.second, night, "—", LABELS[1])
+        cell("num is-missing is-carried", self.second, night, 10, LABELS[2])  # the opening, carried
+        cell("num is-missing is-carried", self.third, day, 8, LABELS[5])
+        self.assertInHTML(f'<td class="num" {LABELS[6]}>9</td>', html)  # first: both periods in
+        self.assertInHTML(f'<td class="num is-missing" {LABELS[6]}>—</td>', html)  # second: nothing at all
+        self.assertInHTML(f'<td class="num" {LABELS[6]}>5*</td>', html)  # third: the day period is missing
         self.assertIn("Бир давр киритилмаган", html)
+        self.assertNotIn("кўрсатилмади", html)  # no row was left out
         self.assertInHTML(
             '<a class="btn no-print" href="/xodim/eksport/?d=2026-10-11">'
             '<svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Excel юклаб олиш</a>',
@@ -349,14 +361,9 @@ class DailyTests(StaffTestCase):
         self.fill()
         self.login(self.boss)
         html = self.client.get(reverse("staff_daily"), {"d": "2026-10-11"}).content.decode()
-
-        def total(name, *values):
-            cells = "".join(f'<td class="num">{v}</td>' for v in values)
-            self.assertInHTML(f'<tr class="total"><td></td><th scope="row">{name}</th>{cells}</tr>', html)
-
-        total("Тошкент МТУ жами", 7, 4, 4 + 10 + 8, 7, 0, -3 + 10 + 8, "14*")
-        total("Қўқон МТУ жами", 0, 0, 10, 0, 0, 10, "0*")
-        total("Жами", 7, 4, 32, 7, 0, 25, "14*")
+        self.assertTotal(html, "Тошкент МТУ жами", 7, 4, 4 + 10 + 8, 7, 0, -3 + 10 + 8, "14*")
+        self.assertTotal(html, "Қўқон МТУ жами", 0, 0, 10, 0, 0, 10, "0*")
+        self.assertTotal(html, "Жами", 7, 4, 32, 7, 0, 25, "14*")
         self.assertIn("<tfoot>", html)
 
         response = self.client.get(reverse("staff_daily"), {"d": "2026-10-11", "mtu": self.mtu_a.pk})
@@ -364,17 +371,56 @@ class DailyTests(StaffTestCase):
         self.assertNotContains(response, "<tfoot>")
         self.assertContains(response, f'href="/xodim/eksport/?d=2026-10-11&amp;mtu={self.mtu_a.pk}"')
 
+    def test_a_switched_off_station_without_data_is_left_out_and_the_totals_add_up(self):
+        night, _ = self.fill()
+        gone = Station.objects.create(mtu=self.mtu_a, name="Ёпиқ", sort=4, active_from=tk(1, 8), active_to=tk(5, 8))
+        # Switched off this morning before its night period ended, so it expected nothing; staff entered the night.
+        today = Station.objects.create(mtu=self.mtu_a, name="Бугун", sort=5, active_from=tk(1, 8), active_to=tk(11, 7))
+        self.entry(today, night, unloaded=4, arrived=2, calc=6)
+        # Switched off long ago and still holding wagons: its stock is data too.
+        Station.objects.create(
+            mtu=self.mtu_a, name="Тўла", sort=6, active_from=tk(1, 8), active_to=tk(5, 8),
+            opening_remaining=6, opening_at=tk(1, 8),
+        )  # fmt: skip
+        self.login(self.boss)
+        response = self.client.get(reverse("staff_daily"), {"d": "2026-10-11"})
+        html = response.content.decode()
+        self.assertNotContains(response, "Ёпиқ")
+        self.assertNotContains(response, f"/xodim/yozuv/{gone.pk}/")
+        self.assertContains(response, "Бугун")
+        self.assertContains(response, "Тўла")
+        self.assertContains(response, "Ўчирилган 1 та станция кўрсатилмади")
+        # The totals sum exactly the rows shown: «Бугун» and «Тўла» add their wagons, «Ёпиқ» is not one of them.
+        tashkent = (2 + 5 + 4, 1 + 3 + 2, 4 + 10 + 8 + 6 + 6, 7, 0, -3 + 10 + 8 + 6 + 6, "18*")
+        self.assertTotal(html, "Тошкент МТУ жами", *tashkent)
+        self.assertTotal(html, "Қўқон МТУ жами", 0, 0, 10, 0, 0, 10, "0*")
+        self.assertTotal(html, "Жами", 11, 6, 44, 7, 0, 37, "18*")
+        self.assertEqual(response.context["grand"].stations, 6)
+        for _, lines, total in response.context["groups"]:
+            self.assertEqual(total, reports.totals([row for row, _ in lines]))
+
+        # An МТУ whose stations are all left out says so instead of «Станциялар йўқ».
+        closed = Mtu.objects.create(name="Термиз", sort=6)
+        Station.objects.create(mtu=closed, name="Термиз-2", active_from=tk(1, 8), active_to=tk(5, 8))
+        response = self.client.get(reverse("staff_daily"), {"d": "2026-10-11", "mtu": closed.pk})
+        self.assertInHTML('<p class="empty">Ўчирилган 1 та станция кўрсатилмади</p>', response.content.decode())
+
     def test_a_period_the_station_does_not_expect_is_quieter_than_a_missing_one(self):
         night, day = periods.ends_for(date(2026, 10, 11))
-        idle = Station.objects.create(mtu=self.mtu_a, name="Янги", sort=9, active_from=NOW)
+        # Switched off at noon: the night period of 11.10 was still expected, the day period was not.
+        noon = Station.objects.create(mtu=self.mtu_a, name="Янги", sort=9, active_from=tk(1, 8), active_to=tk(11, 12))
         self.login(self.user_a)
         html = self.client.get(reverse("staff_daily"), {"d": "2026-10-11"}).content.decode()
-        cell = '<td class="num {}"><a class="cell" href="{}">—</a></td>'
-        for pe in (night, day):
-            self.assertInHTML(cell.format("is-off", entry_url(idle, pe)), html, count=3)
-        self.assertInHTML('<td class="num is-off">—</td>', html)  # its daily total
-        self.assertInHTML(cell.format("is-missing", entry_url(self.second, night)), html, count=2)
+        cell = '<td class="num {}" {}><a class="cell" href="{}">—</a></td>'
+        for i, label in enumerate(LABELS[:3]):
+            self.assertInHTML(cell.format("is-missing", label, entry_url(noon, night)), html)
+            self.assertInHTML(cell.format("is-off", LABELS[3 + i], entry_url(noon, day)), html)
+        self.assertInHTML(f'<td class="num is-missing" {LABELS[6]}>—</td>', html)  # its daily total: night missing
         self.assertInHTML('<li><span class="is-off">—</span>Ўчирилган станция</li>', html)  # the legend says why
+        # The day before, it expected both periods: no such cell, so the legend leaves the item out.
+        html = self.client.get(reverse("staff_daily"), {"d": "2026-10-10"}).content.decode()
+        self.assertIn("Янги", html)
+        self.assertNotIn("Ўчирилган станция", html)
 
     def test_the_date_defaults_to_the_latest_report_date(self):
         self.login(self.user_a)
@@ -385,6 +431,7 @@ class DailyTests(StaffTestCase):
         # The night period has ended and links to its form; the running day period stays blank.
         self.assertContains(response, f'href="{entry_url(self.first, PE)}"')
         self.assertNotContains(response, entry_url(self.first, tk(12, 20)))
+        self.assertNotContains(response, "Ўчирилган станция")  # its blank cells are no switched-off station
         self.assertContains(response, 'href="?d=2026-10-11"')
         self.assertInHTML('<span class="btn no-print" aria-disabled="true"></span>', response.content.decode())
 

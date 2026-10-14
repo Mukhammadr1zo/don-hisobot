@@ -92,10 +92,15 @@ def summary(stations, d_from, d_to, *, now) -> tuple[list[SummaryRow], list[Summ
                 sum(_remaining(e) != e.remaining_calc for e in mine),
             )
         )
+    return rows, by_mtu(rows)
+
+
+def by_mtu(rows) -> list[SummaryRow]:
+    """One total per MTU present in `rows`, in their order."""
     groups = {}
     for row in rows:
         groups.setdefault(row.mtu.id, []).append(row)
-    return rows, [total(group, group[0].mtu) for group in groups.values()]
+    return [total(group, group[0].mtu) for group in groups.values()]
 
 
 def daily_series(stations, d_from, d_to, *, now) -> dict:

@@ -7,6 +7,7 @@ The tables carry every number. charts.js draws the two charts from #chart-data w
 it the chart boxes keep their fallback text. Page CSS: static/hisobot/pages/report.css.
 `grouped` (more than one МТУ, .r-grouped on the bento): МТУ rows in the hero, МТУ segment bars, the МТУ table and
 tinted group rows; otherwise the hero has one dot per station.
+The rows and sums leave out the `hidden` stations: they expected nothing in the range and hold no wagons (switched off).
 {% endcomment %}
 {% block title %}Ҳисобот · {{ block.super }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/report.css' %}">{% endblock %}
@@ -204,7 +205,7 @@ tinted group rows; otherwise the hero has one dot per station.
             <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|thousands }}</td>
             <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|thousands }}</td>
             <td class="num">{{ row.submitted|thousands }} / {{ row.expected|thousands }}</td>
-            <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+            <td class="num{% if row.overrides %} r-overrides{% else %} muted{% endif %}">{{ row.overrides }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -215,7 +216,7 @@ tinted group rows; otherwise the hero has one dot per station.
             <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|thousands }}</td>
             <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|thousands }}</td>
             <td class="num">{{ total.submitted|thousands }} / {{ total.expected|thousands }}</td>
-            <td class="num">{{ total.overrides }}</td>
+            <td class="num{% if total.overrides %} r-overrides{% else %} muted{% endif %}">{{ total.overrides }}</td>
           </tr>
         </tfoot>
       </table>
@@ -227,6 +228,7 @@ tinted group rows; otherwise the hero has one dot per station.
     <div class="t-head">
       <h2 class="t-title" id="r-st-t">Станциялар бўйича</h2>
       <span class="t-sub">{{ d_from|d }} – {{ d_to|d }}</span>
+      {% if hidden and station_rows %}<p class="r-hidden muted small">Ўчирилган {{ hidden }} та станция кўрсатилмади</p>{% endif %}
     </div>
     <div class="table-wrap">
       <table class="table">
@@ -249,10 +251,10 @@ tinted group rows; otherwise the hero has one dot per station.
             <td class="num{% if row.arrived is None and row.missing %} is-missing{% endif %}">{{ row.arrived|thousands }}</td>
             <td class="num{% if row.remaining_end is None and row.missing %} is-missing{% elif row.remaining_end < 0 %} is-negative{% endif %}">{{ row.remaining_end|thousands }}</td>
             <td class="num">{{ row.submitted|thousands }} / {{ row.expected|thousands }}</td>
-            <td class="num{% if row.overrides %} is-override{% endif %}">{{ row.overrides }}</td>
+            <td class="num{% if row.overrides %} r-overrides{% else %} muted{% endif %}">{{ row.overrides }}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="6"><p class="empty">Станциялар йўқ</p></td></tr>
+          <tr><td colspan="6"><p class="empty">{% if hidden %}Ўчирилган {{ hidden }} та станция кўрсатилмади{% else %}Станциялар йўқ{% endif %}</p></td></tr>
           {% endfor %}
         </tbody>
         {% if station_rows %}
@@ -263,7 +265,7 @@ tinted group rows; otherwise the hero has one dot per station.
             <td class="num{% if total.arrived is None and total.missing %} is-missing{% endif %}">{{ total.arrived|thousands }}</td>
             <td class="num{% if total.remaining_end is None and total.missing %} is-missing{% elif total.remaining_end < 0 %} is-negative{% endif %}">{{ total.remaining_end|thousands }}</td>
             <td class="num">{{ total.submitted|thousands }} / {{ total.expected|thousands }}</td>
-            <td class="num">{{ total.overrides }}</td>
+            <td class="num{% if total.overrides %} r-overrides{% else %} muted{% endif %}">{{ total.overrides }}</td>
           </tr>
         </tfoot>
         {% endif %}

@@ -88,6 +88,14 @@
 .r-table .table tr.group th > span{left:var(--pad)}
 .r-mtu-row > th{white-space:nowrap}
 .r-mtu-row i.key{display:inline-block;margin-right:10px;vertical-align:1px}
+/* «Қўлда ўзгартирилган» counts entries: amber text with a dot above zero, .muted at zero. Not .is-override, the
+   frame of one typed cell, which made a count look like an input field. */
+.r-overrides{color:var(--warn)}
+.r-overrides::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;
+  background:currentColor;vertical-align:1px}
+/* «Ўчирилган N та станция кўрсатилмади»: a line of its own under the title; in an МТУ band, in its ink. */
+.r-hidden{flex-basis:100%;margin-top:-4px}
+.r-table[class*="mtu-"] .r-hidden{color:var(--deep)}
 /* «Кунлар бўйича жадвал» among the tiles: their radius, inset and title (app.css draws details as an inner panel).
    No overflow:hidden, which would clip the summary's focus ring: the table rounds its own bottom corners. */
 .bento > details{padding:0 var(--pad);border-radius:var(--r-tile)}

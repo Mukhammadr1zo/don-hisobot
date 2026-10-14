@@ -5,6 +5,7 @@ One period's numbers (mockup c-rangli/station.html, screen B). The hidden versio
 showed, so balance.save_entry can tell a stale page (spec 5.6.4). A station's first entry asks for the opening
 balance instead of showing «Давр бошида». «Қолган» is computed live by the script below, which also drives the
 − / + buttons; without JavaScript it shows the saved value or a dash and the buttons do nothing.
+The gap warning links to the period before while the station can still enter it (`gap_url`); after that only staff can.
 {% endcomment %}
 {% block title %}{{ pe|period_name }} · {{ block.super }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/station.css' %}">{% endblock %}
@@ -23,7 +24,8 @@ balance instead of showing «Давр бошида». «Қолган» is comput
   </section>
 
   {% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
-  {% if gap %}<div class="notice-warn" role="status">Олдинги давр киритилмаган</div>{% endif %}
+  {% if gap_url %}<a class="notice-warn gap-link" href="{{ gap_url }}"><span>Олдинги давр киритилмаган: <span class="nowrap">аввал уни киритинг</span></span><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+  {% elif gap %}<div class="notice-warn" role="status">Олдинги давр киритилмаган: <span class="nowrap">МТУ киритади</span></div>{% endif %}
 
   <form method="post" novalidate class="stack" id="davr">
     {% csrf_token %}

@@ -113,6 +113,13 @@ def daily_rows(stations, report_date, *, now) -> list[DayRow]:
     return rows
 
 
+def shown(rows) -> list[DayRow]:
+    """The rows the daily table and its export list: a station that expected an ended period of the day, entered one
+    or holds wagons. The rest (switched off, or not on yet, with nothing entered or held) would be dashes only, and add
+    nothing to the totals."""
+    return [row for row in rows if any(c.expected or c.entry or c.remaining for c in (row.night, row.day))]
+
+
 def _sums(cells):
     """(unloaded, arrived, remaining) over one period's cells; what is absent or unknown adds nothing."""
     entries = [c.entry for c in cells if c.entry]

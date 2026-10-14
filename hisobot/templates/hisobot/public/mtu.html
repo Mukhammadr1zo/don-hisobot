@@ -1,9 +1,10 @@
 {% extends "hisobot/base.html" %}
 {% load static hisobot_extras %}
 {% comment %}
-The active stations of one MTU (mockup c-rangli/mtu.html). The search box is a GET form (?q=) that the server
-filters; with JavaScript the tiles also filter as you type. `total` counts all active stations, `stations` the ones
-shown. `pe` `night` `deadline` come from views_public._open_now.
+The active stations of one MTU in Uzbek alphabetical order (mockup c-rangli/mtu.html). The search box is a GET form
+(?q=) that the server filters; with JavaScript the tiles also filter as you type. `total` counts all active stations,
+`stations` the ones shown. On a phone the heading is one row and the open period goes after the list (public.css),
+so the search box and the first stations fit the first screen. `pe` `night` `deadline` come from views_public._open_now.
 {% endcomment %}
 {% block title %}{{ mtu.name }} МТУ · {{ block.super }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/public.css' %}">{% endblock %}

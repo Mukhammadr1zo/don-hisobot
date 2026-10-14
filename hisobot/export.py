@@ -111,7 +111,8 @@ class _Sheet:
 
 
 def export_daily(stations, report_date, *, user, now) -> bytes:
-    rows = reports.daily_rows(stations, report_date, now=now)
+    every = reports.daily_rows(stations, report_date, now=now)
+    rows = reports.shown(every)  # as on the daily page: no rows of dashes for switched-off stations
     groups = reports.by_mtu(rows)
     totals = reports.totals(rows)
 
@@ -134,6 +135,8 @@ def export_daily(stations, report_date, *, user, now) -> bytes:
     out.note(f"Яратилган: {periods.local(now):%d.%m.%Y %H:%M}")
     out.note(f"Аккаунт: {user.display_name}")
     out.note(f"Киритмаган станциялар сони: {totals.missing}")
+    if len(every) > len(rows):
+        out.note(f"Ўчирилган {len(every) - len(rows)} та станция кўрсатилмади")
     out.note("12* — бир давр киритилмаган, сутка жами тўлиқ эмас")
     out.note(
         "Кулранг — кўчирилган қолдиқ, сариқ — қўлда ўзгартирилган (изоҳда ҳисобланган қиймат), қизил — манфий қолдиқ"

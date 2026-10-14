@@ -3,7 +3,9 @@
 {% comment %}
 The customer's daily template: two header rows, 9 columns, grouped by MTU (a tinted title row each) with
 «<МТУ> жами» each, and a grand «Жами» when more than one MTU is shown. A period that has ended links its cells to
-the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug or None) ×2]), …], totals)].
+the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(cell, slug or None) ×2]), …], totals)],
+without the switched-off stations that have nothing to show (`hidden` of them, reports.shown).
+On a phone each row is a card (pages/staff.css): data-period names a period's line, data-label a number's caption.
 {% endcomment %}
 {% block title %}Кунлик жадвал · {{ block.super }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/staff.css' %}">{% endblock %}
@@ -51,8 +53,9 @@ the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(
     <li><span class="swatch is-negative"></span>Манфий қолдиқ</li>
     <li><span class="is-carried">9</span>Кўчирилган қолдиқ</li>
     <li><span>12*</span>Бир давр киритилмаган</li>
-    <li><span class="is-off">—</span>Ўчирилган станция</li>
+    {% if off %}<li><span class="is-off">—</span>Ўчирилган станция</li>{% endif %}
   </ul>
+  {% if hidden %}<p class="daily-hidden muted small">Ўчирилган {{ hidden }} та станция кўрсатилмади</p>{% endif %}
   <div class="table-wrap">
     <table class="table">
       <thead>
@@ -81,23 +84,23 @@ the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(
           <th scope="row">{{ row.station.name }}</th>
           {# A period the station does not expect (switched off) and did not enter is quieter than «Киритилмаган». #}
           {% for cell, slug in cells %}{% if slug %}{% url 'staff_entry' row.station.pk slug as href %}{% endif %}
-          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.unloaded|num }}</a>{% endif %}</td>
-          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.arrived|num }}</a>{% endif %}</td>
-          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}{% if cell.carried %} is-carried{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.remaining|num }}</a>{% endif %}</td>
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}" data-label="Туширилган" data-period="{% if forloop.first %}Тунги{% else %}Кундузги{% endif %}">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.unloaded|num }}</a>{% endif %}</td>
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}" data-label="Кириб келган">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.entry.arrived|num }}</a>{% endif %}</td>
+          <td class="num{% if not cell.entry %}{% if cell.expected %} is-missing{% else %} is-off{% endif %}{% endif %}{% if cell.entry.overridden %} is-override{% endif %}{% if cell.remaining < 0 %} is-negative{% endif %}{% if cell.carried %} is-carried{% endif %}" data-label="Қолган">{% if slug %}<a class="cell" href="{{ href }}">{{ cell.remaining|num }}</a>{% endif %}</td>
           {% endfor %}
-          <td class="num{% if row.total_unloaded is None %}{% if row.partial %} is-missing{% else %} is-off{% endif %}{% endif %}">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
+          <td class="num{% if row.total_unloaded is None %}{% if row.partial %} is-missing{% else %} is-off{% endif %}{% endif %}" data-label="Жами">{{ row.total_unloaded|num }}{% if row.partial and row.total_unloaded is not None %}*{% endif %}</td>
         </tr>
         {% endfor %}
         <tr class="total">
           <td></td>
           <th scope="row">{{ group_mtu.name }} МТУ жами</th>
-          <td class="num">{% if night_ended %}{{ total.n_unloaded }}{% endif %}</td>
-          <td class="num">{% if night_ended %}{{ total.n_arrived }}{% endif %}</td>
-          <td class="num">{% if night_ended %}{{ total.n_remaining }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ total.d_unloaded }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ total.d_arrived }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ total.d_remaining }}{% endif %}</td>
-          <td class="num">{{ total.total_unloaded }}{% if total.partial %}*{% endif %}</td>
+          <td class="num" data-label="Туширилган" data-period="Тунги">{% if night_ended %}{{ total.n_unloaded }}{% endif %}</td>
+          <td class="num" data-label="Кириб келган">{% if night_ended %}{{ total.n_arrived }}{% endif %}</td>
+          <td class="num" data-label="Қолган">{% if night_ended %}{{ total.n_remaining }}{% endif %}</td>
+          <td class="num" data-label="Туширилган" data-period="Кундузги">{% if day_ended %}{{ total.d_unloaded }}{% endif %}</td>
+          <td class="num" data-label="Кириб келган">{% if day_ended %}{{ total.d_arrived }}{% endif %}</td>
+          <td class="num" data-label="Қолган">{% if day_ended %}{{ total.d_remaining }}{% endif %}</td>
+          <td class="num" data-label="Жами">{{ total.total_unloaded }}{% if total.partial %}*{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -106,13 +109,13 @@ the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(
         <tr class="total">
           <td></td>
           <th scope="row">Жами</th>
-          <td class="num">{% if night_ended %}{{ grand.n_unloaded }}{% endif %}</td>
-          <td class="num">{% if night_ended %}{{ grand.n_arrived }}{% endif %}</td>
-          <td class="num">{% if night_ended %}{{ grand.n_remaining }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ grand.d_unloaded }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ grand.d_arrived }}{% endif %}</td>
-          <td class="num">{% if day_ended %}{{ grand.d_remaining }}{% endif %}</td>
-          <td class="num">{{ grand.total_unloaded }}{% if grand.partial %}*{% endif %}</td>
+          <td class="num" data-label="Туширилган" data-period="Тунги">{% if night_ended %}{{ grand.n_unloaded }}{% endif %}</td>
+          <td class="num" data-label="Кириб келган">{% if night_ended %}{{ grand.n_arrived }}{% endif %}</td>
+          <td class="num" data-label="Қолган">{% if night_ended %}{{ grand.n_remaining }}{% endif %}</td>
+          <td class="num" data-label="Туширилган" data-period="Кундузги">{% if day_ended %}{{ grand.d_unloaded }}{% endif %}</td>
+          <td class="num" data-label="Кириб келган">{% if day_ended %}{{ grand.d_arrived }}{% endif %}</td>
+          <td class="num" data-label="Қолган">{% if day_ended %}{{ grand.d_remaining }}{% endif %}</td>
+          <td class="num" data-label="Жами">{{ grand.total_unloaded }}{% if grand.partial %}*{% endif %}</td>
         </tr>
       </tfoot>
       {% endif %}
@@ -120,6 +123,6 @@ the form; a running one is blank (never "missing"). `groups` is [(mtu, [(row, [(
   </div>
 </section>
 {% else %}
-<p class="empty">Станциялар йўқ</p>
+<p class="empty">{% if hidden %}Ўчирилган {{ hidden }} та станция кўрсатилмади{% else %}Станциялар йўқ{% endif %}</p>
 {% endif %}
 {% endblock %}

@@ -1,5 +1,6 @@
 """The station's way through the site: MTU → station → PIN → the two open periods → the entry form."""
 
+import re
 from datetime import timedelta
 from unittest import mock
 
@@ -77,6 +78,14 @@ class StationFlowTests(TestCase):
         self.assertContains(pin_page, "Хамза")
         for attribute in ('name="pin"', 'inputmode="numeric"', 'autocomplete="off"', 'maxlength="4"'):
             self.assertContains(pin_page, attribute)
+        # Where the PIN comes from, under the field and tied to it for screen readers.
+        self.assertContains(pin_page, 'aria-describedby="pin-help"')
+        self.assertContains(
+            pin_page,
+            '<p class="help" id="pin-help">'
+            "ПИН — МТУ берган варақдаги 4 та рақам. Унутган бўлсангиз, МТУга мурожаат қилинг.</p>",
+            html=True,
+        )
 
         # Typed as printed on the PIN sheet.
         self.assertRedirects(self.login(self.fresh, pin="1234"), reverse("station_home"))
@@ -161,6 +170,20 @@ class StationFlowTests(TestCase):
         self.assertContains(self.client.get(url, {"q": "чукур"}), "Чуқурсой")
         self.assertEqual(self.client.get(reverse("mtu_stations", args=[999999])).status_code, 404)
 
+    def test_mtu_page_lists_stations_in_uzbek_alphabetical_order(self):
+        # Codepoints put Ё and Ў before А, and Ғ before Қ. The alphabet has Ё after Е and ends Я Ў Қ Ғ Ҳ.
+        for name in ("Ўзбекистон", "Ҳазорасп", "Ғаллаорол", "Қумқўрғон", "Оқкўприк", "Ёшлик", "Жиззах", "Ангрен"):
+            self.make(name)
+        self.make("бекобод")  # typed in lower case: still among the Б
+
+        page = self.client.get(reverse("mtu_stations", args=[self.mtu.pk])).content.decode()
+
+        self.assertEqual(
+            re.findall(r'<span class="st-name">([^<]+)</span>', page),
+            ["Ангрен", "бекобод", "Ёшлик", "Жиззах", "Оқкўприк", "Хамза", "Чуқурсой",
+             "Ўзбекистон", "Қумқўрғон", "Ғаллаорол", "Ҳазорасп"],
+        )  # fmt: skip
+
     def test_visitor_pages_show_the_period_open_now(self):
         # At 09:05 the night period of 12.10 has just ended: stations enter it until 13.10 08:00.
         home = self.client.get(reverse("home")).content.decode()
@@ -169,6 +192,7 @@ class StationFlowTests(TestCase):
         self.assertIn("Кейинги давр 20:00 да очилади", home)
         self.assertIn("rotate(136.25 80 80)", home)  # the dial's hand: 09:05 is minute 545 of 1440
         self.assertInHTML('<span class="cnt"><b>2</b> станция</span>', home)  # Тошкент: Чуқурсой, Хамза
+        self.assertNotIn('class="dots"', home)  # the count is enough: no dot per station
         self.assertInHTML('<span class="t-sub">3 станция</span>', home)  # every active station
 
         picker = self.client.get(reverse("mtu_stations", args=[self.mtu.pk]), {"q": "хам"}).content.decode()
@@ -281,6 +305,27 @@ class StationFlowTests(TestCase):
         night = self.client.get(self.entry_url(NIGHT))
         self.assertNotContains(night, GAP)
         self.assertContains(night, 'name="prev" value="7"')
+
+    def test_the_gap_warning_leads_to_the_period_before_while_the_station_can_enter_it(self):
+        self.login()
+
+        # The day period of 11.10 has no entry and stays open to the station until 12.10 20:00.
+        self.assertContains(
+            self.client.get(self.entry_url(NIGHT)),
+            f'<a class="notice-warn gap-link" href="{self.entry_url(DAY_BEFORE)}"><span>Олдинги давр киритилмаган: '
+            '<span class="nowrap">аввал уни киритинг</span></span>'
+            '<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>',
+            html=True,
+        )
+        # Next morning the night period of 12.10 has closed for the station: no link, the МТУ enters it.
+        with at(tk(13, 9)):
+            page = self.client.get(self.entry_url(TONIGHT))
+        self.assertContains(
+            page,
+            '<div class="notice-warn" role="status">Олдинги давр киритилмаган: <span class="nowrap">МТУ киритади</span></div>',
+            html=True,
+        )
+        self.assertNotContains(page, self.entry_url(NIGHT))
 
     def test_a_saved_period_can_be_corrected(self):
         self.login()

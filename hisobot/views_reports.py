@@ -95,10 +95,14 @@ def report(request):
     rows = mtu_rows if by == "mtu" else station_rows
     compare["sorts"] = [row.mtu.sort for row in rows]  # the МТУ of each bar, for its colour (charts.js)
     if by == "station":
-        # A station that expects nothing in the range (outside active_from/active_to) would be an empty row;
-        # the table still lists it.
+        # A station that expects nothing in the range (outside active_from/active_to) would be an empty bar.
         keep = [row.expected > 0 for row in rows]
         compare = {key: list(compress(values, keep)) for key, values in compare.items()}
+    # The tables, the hero and the sums leave out a station that expected nothing in the range (so entered nothing
+    # either) and holds no wagons: switched off, its row would be dashes. МТУ rows and totals add up what is left.
+    shown = [row for row in station_rows if row.expected or row.remaining_end]
+    hidden = len(station_rows) - len(shown)
+    station_rows, mtu_rows = shown, summary.by_mtu(shown)
     chart = {
         "daily": {**series, **drawn},
         "compare": compare,
@@ -120,6 +124,7 @@ def report(request):
         "presets": presets,
         "station_rows": station_rows,
         "mtu_rows": mtu_rows,
+        "hidden": hidden,
         "grouped": len(mtu_rows) > 1,
         "total": total,
         "missing": total.missing,

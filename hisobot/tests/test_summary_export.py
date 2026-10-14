@@ -288,6 +288,19 @@ class ExportTests(DayFixture):
         self.assertEqual(row_values(sheet, 8), [None, "Тошкент МТУ жами", 8, 1, 11, None, None, None, "8*"])
         self.assertEqual(row_values(sheet, 12), [None, "Жами", 8, 1, 11, None, None, None, "8*"])
 
+    def test_a_switched_off_station_without_data_is_left_out_and_the_totals_add_up(self):
+        self.station("Ёпиқ", self.mtu_a, 4, active_to=tk(5, 8))  # off before the day: nothing expected, entered or held
+        today = self.station("Бугун", self.mtu_a, 5, active_to=tk(12, 7))  # off before its night ended, entered later
+        self.entry(today, NIGHT_END, unloaded=2, arrived=1, calc=4)
+        sheet = self.sheet(access.stations_for(self.tashkent), self.tashkent)
+        self.assertEqual([sheet.cell(r, 2).value for r in range(4, 9)], ["Олмазор", "=1+1", "Сергели", "Бугун", "Жами"])
+        self.assertEqual(row_values(sheet, 7), [4, "Бугун", 2, 1, 4, None, None, 4, 2])
+        self.assertEqual(row_values(sheet, 8), [None, "Жами", 8 + 2, 1 + 1, 11 + 4, 5, 3, 9 + 4, "15*"])
+        text = all_text(sheet)
+        self.assertNotIn("Ёпиқ", text)
+        self.assertIn("Ўчирилган 1 та станция кўрсатилмади", text)
+        self.assertNotIn("кўрсатилмади", all_text(self.sheet(self.scope().exclude(name="Ёпиқ"), self.boss)))
+
     def test_a_control_character_in_a_stored_name_does_not_break_the_file(self):
         # The forms refuse such a name now; one stored earlier, or through the ORM, must not make every export fail.
         self.station("Альфа\x0bбекат", self.mtu_a, 4)
@@ -351,6 +364,11 @@ class ViewTests(DayFixture):
         self.assertContains(response, "Excel юклаб олиш")
         self.assertContains(response, '<form method="get" class="toolbar r-range no-print" novalidate>')  # not on paper
         self.assertContains(response, "hisobot/pages/report.css")
+        # «Қўлда ўзгартирилган» counts entries: plain text, amber above zero and muted at zero, never a cell's frame.
+        html = response.content.decode()
+        self.assertNotIn("is-override", html)
+        self.assertInHTML('<td class="num r-overrides">1</td>', html, count=4)  # Олмазор, Тошкент, both totals
+        self.assertInHTML('<td class="num muted">0</td>', html, count=4)  # =1+1, Сергели, Бета, Қўқон
 
     def test_a_day_still_filling_is_not_drawn_as_a_finished_day(self):
         self.entry(self.s3, tk(10, 20), unloaded=2, arrived=2, calc=0)  # 10.09 is over and closed: drawn
@@ -388,7 +406,29 @@ class ViewTests(DayFixture):
         compare = response.context["chart"]["compare"]
         self.assertEqual(compare["labels"], ["Олмазор", "=1+1", "Сергели"])  # the bars stay aligned
         self.assertEqual((compare["unloaded"], compare["arrived"], compare["sorts"]), ([7, 5, 1], [3, 0, 1], [1, 1, 1]))
-        self.assertContains(response, '<th scope="row">Кейин</th>', html=True)  # the table still lists it
+        self.assertNotContains(response, "Кейин")  # nor does the table: it says how many it left out
+        self.assertContains(response, "Ўчирилган 1 та станция кўрсатилмади")
+
+    def test_the_station_table_leaves_out_switched_off_stations_and_the_totals_add_up(self):
+        self.station("Ёпиқ", self.mtu_a, 4, active_to=tk(5, 8))  # off before the range: nothing expected or held
+        late = self.station("Кеч", self.mtu_a, 5, active_to=tk(9, 8))  # off before the range, entered in it by staff
+        self.entry(late, tk(11, 20), unloaded=2, arrived=3, calc=1)
+        self.station("Тўла", self.mtu_a, 6, active_to=tk(5, 8), opening_remaining=3, opening_at=tk(2, 8))  # holds 3
+        idle = self.station("Бўш", self.mtu_b, 2, active_to=tk(5, 8))
+        self.entry(idle, tk(4, 20), calc=0)  # its stock is a known 0: no wagons, nothing to show
+        self.login(self.boss)
+        response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
+        rows = response.context["station_rows"]
+        self.assertEqual([r.station.name for r in rows], ["Олмазор", "=1+1", "Сергели", "Кеч", "Тўла", "Бета"])
+        self.assertNotContains(response, "Ёпиқ")
+        self.assertNotContains(response, "Бўш")
+        self.assertContains(response, "Ўчирилган 2 та станция кўрсатилмади")
+        # The МТУ rows and the totals sum exactly the rows shown: Қўқон's stock is Бета's (unknown), not Бўш's 0.
+        mtu_rows = response.context["mtu_rows"]
+        self.assertEqual(mtu_rows, [summary.total(rows[:5], self.mtu_a), summary.total(rows[5:], self.mtu_b)])
+        self.assertIsNone(mtu_rows[1].remaining_end)
+        self.assertEqual(response.context["total"], summary.total(rows))
+        self.assertEqual((rows[3].expected, rows[4].expected, rows[4].remaining_end), (1, 0, 3))
 
     def test_boshqarma_with_one_mtu_compares_its_stations(self):
         self.login(self.boss)
@@ -439,11 +479,12 @@ class ViewTests(DayFixture):
         self.assertEqual((response.context["d_from"], response.context["d_to"]), (last - timedelta(days=6), last))
 
     def test_grey_means_expected_and_not_entered(self):
-        later = self.station("Кейин", self.mtu_a, 9, active_from=tk(20, 8))  # expects nothing in the range
+        # Switched off before the range, still holding wagons: listed for its stock, though it expects nothing.
+        held = self.station("Тўла", self.mtu_a, 9, active_to=tk(5, 8), opening_remaining=3, opening_at=tk(2, 8))
         self.login(self.boss)
         response = self.get("staff_report", **{"from": "2026-09-10", "to": "2026-09-12"})
         html = response.content.decode()
-        row = html[html.index(f"<th scope=\"row\">{later.name}</th>"):]
+        row = html[html.index(f"<th scope=\"row\">{held.name}</th>"):]
         row = row[: row.index("</tr>")]
         self.assertNotIn("is-missing", row)
         self.assertIn("0 / 0", row)

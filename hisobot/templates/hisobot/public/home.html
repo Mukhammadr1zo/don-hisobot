@@ -2,7 +2,8 @@
 {% load static hisobot_extras %}
 {% comment %}
 Start page for visitors (mockup c-rangli/home.html): the hero carries the brand, so there is no top bar. The period
-open right now and the server clock, then one tile per МТУ (a dot per active station) and the staff login.
+open right now and the server clock, then one tile per МТУ (its count of active stations) and the staff login.
+On a phone the hero is short and the period and clock tiles go last (public.css): picking the МТУ is the task here.
 `pe` `night` `deadline` `next_open` `hand` come from views_public._open_now.
 {% endcomment %}
 {% block head %}<link rel="stylesheet" href="{% static 'hisobot/pages/public.css' %}">{% endblock %}
@@ -79,10 +80,7 @@ open right now and the server clock, then one tile per МТУ (a dot per active 
   {% for mtu in mtus %}
   <a class="tile tile-mtu mtu-{{ mtu.sort }} span-4 phone-half h-mtu" href="{% url 'mtu_stations' mtu.pk %}">
     <span class="mtu-top"><span class="name">{{ mtu.name }}</span><span class="go" aria-hidden="true"><svg class="ico"><use href="#i-arrow"/></svg></span></span>
-    <span class="mtu-bot">
-      <span class="dots" aria-hidden="true">{% for dot in mtu.dots %}<i></i>{% endfor %}</span>
-      <span class="cnt"><b>{{ mtu.active }}</b> станция</span>
-    </span>
+    <span class="cnt"><b>{{ mtu.active }}</b> станция</span>
   </a>
   {% endfor %}
 

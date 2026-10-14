@@ -44,8 +44,6 @@ def home(request):
     mtus = list(
         Mtu.objects.order_by("sort", "name").annotate(active=Count("stations", filter=Q(stations__active_to=None)))
     )
-    for mtu in mtus:
-        mtu.dots = range(mtu.active)  # one dot per active station on the МТУ's tile
     context = {"mtus": mtus, "total": sum(mtu.active for mtu in mtus), **_open_now(timezone.now())}
     return render(request, "hisobot/public/home.html", context)
 
@@ -53,14 +51,22 @@ def home(request):
 # A Russian keyboard has no ў қ ғ ҳ: operators type у к г х, so the two spellings match alike.
 FOLD = str.maketrans("ўқғҳё", "укгхе")
 
+# The Uzbek Cyrillic alphabet in its own order. Codepoints would put Ё and Ў before А, and Ғ before Қ.
+ALPHABET = {letter: n for n, letter in enumerate("абвгдеёжзийклмнопрстуфхцчшъьэюяўқғҳ")}
+
 
 def _fold(text):
     return text.casefold().translate(FOLD)
 
 
+def _alphabetical(name):
+    """Sort key: Uzbek alphabetical order ignoring case; any other character comes after the letters, by codepoint."""
+    return [ALPHABET.get(char, len(ALPHABET) + ord(char)) for char in name.casefold()]
+
+
 def mtu_stations(request, mtu_id):
     mtu = get_object_or_404(Mtu, pk=mtu_id)
-    stations = list(mtu.stations.filter(active_to=None).order_by("sort", "name"))
+    stations = sorted(mtu.stations.filter(active_to=None), key=lambda station: _alphabetical(station.name))
     total = len(stations)
     query = request.GET.get("q", "").strip()
     if query:

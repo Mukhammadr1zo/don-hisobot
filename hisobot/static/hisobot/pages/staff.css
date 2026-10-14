@@ -169,6 +169,8 @@
 /* The grand «Жами» closes the table on the night colour. */
 .daily .table tfoot tr.total{--row-bg:var(--night);color:#fff}
 .daily .table tfoot tr.total > *{border-right-color:rgba(255,255,255,.12)}
+/* «Ўчирилган N та станция кўрсатилмади», under the legend. */
+.daily > .daily-hidden{margin-top:-8px;padding:0 26px 16px}
 
 /* =========================================================
    One station's period (staff/entry.html)
@@ -255,10 +257,52 @@
   .xlab span:nth-last-child(n){visibility:hidden}
   .xlab span:nth-last-child(4n+1){visibility:visible}
 }
+/* «Кунлик жадвал» on a phone: each row is a card, as the nine columns only scrolled sideways one number at a time.
+   The station's number and name; a line per period, named by its first cell's data-period, under captions drawn from
+   the night cells' data-label; then «Жами» under «Туширилган». A period still running has empty cells: its line goes.
+   The cells keep their state classes. Screen only: paper keeps the table. */
+@media screen and (max-width:760px){
+  .daily{--card-x:16px} /* the cards' side padding; the legend and the МТУ headers line up with it */
+  .daily > .legend,.daily > .daily-hidden{padding-inline:var(--card-x)}
+  .daily .table,.daily .table > tbody,.daily .table > tfoot,.daily .table tr.group,.daily .table tr.group > th{
+    display:block}
+  .daily .table > thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)} /* still read */
+  .daily .table tr.group > th{padding:14px var(--card-x) 12px;border:0}
+  .daily .table tr.group > th > span{position:static}
+  .daily .table tr:not(.group){--cell-y:11px;--cell-x:8px;--lab:4rem;display:grid;
+    grid-template-columns:var(--lab) repeat(3,minmax(0,1fr));gap:6px;padding:14px var(--card-x) 16px;
+    border-bottom:1px solid var(--line);background:var(--row-bg)}
+  .daily .table tr:not(.group) > *{position:relative;min-width:0;max-width:none;border:0;border-radius:8px;
+    text-align:center}
+  .daily .table tr:not(.group) > td:empty{display:none}
+  /* The number, then the name on the same line (the name's cell lies over the number's, past it). */
+  .daily .table tr:not(.group) > td:first-child{grid-area:1/1;width:auto;padding:0;align-self:baseline;text-align:left}
+  .daily .table tr:not(.group) > th{grid-area:1/1/2/-1;padding:0 0 4px 2.4rem;align-self:baseline;background:none;
+    font-size:16px;line-height:1.25;text-align:left}
+  .daily .table tr.total > th{padding-left:0}
+  .daily .table tr:not(.group) > :is(:nth-child(3),:nth-child(6),:nth-child(9)){grid-column:2}
+  .daily .table tr:not(.group) > :last-child{padding-block:5px}
+  .daily .table tr:not(.group) a.cell{border-radius:inherit}
+  /* Captions over the night line, in the space its cells leave above them. */
+  .daily .table tr:not(.group) > :is(:nth-child(3),:nth-child(4),:nth-child(5)){margin-top:17px}
+  .daily .table tr:not(.group) > :is(:nth-child(3),:nth-child(4),:nth-child(5))::after{content:attr(data-label);
+    position:absolute;right:-3px;bottom:calc(100% + 3px);left:-3px;color:var(--ink-3);font-size:11px;
+    font-style:normal;font-weight:550;line-height:1.2;white-space:nowrap}
+  /* The line's name (and «Жами»), in the first column beside it. */
+  .daily .table tr:not(.group) > [data-period]::before,.daily .table tr:not(.group) > :last-child::before{
+    content:attr(data-period);position:absolute;top:0;right:calc(100% + 6px);bottom:0;display:flex;align-items:center;
+    width:var(--lab);color:var(--ink-2);font-size:13.5px;font-style:normal;font-weight:600;white-space:nowrap}
+  .daily .table tr:not(.group) > :last-child::before{content:attr(data-label)}
+  .daily .table tfoot tr.total{--ink-2:#fff;--ink-3:var(--night-ink-2);border-bottom:0}
+}
+/* A 360px phone: «Туширилган» and «Кириб келган» keep a gap between them. */
+@media screen and (max-width:400px){
+  .daily{--card-x:12px}
+}
 @media print{
   /* On paper the table is no box: no frame, no corners, and it breaks across pages. */
   .daily{padding:0;border:0;border-radius:0;overflow:visible;break-inside:auto}
-  .daily > .legend{padding:0 0 8px}
+  .daily > .legend,.daily > .daily-hidden{margin:0;padding:0 0 8px}
   /* Paper drops the night fill: the grand total goes back to black on white. */
   .daily .table tfoot tr.total{--row-bg:#fff;color:#000}
   .daily .table tfoot tr.total > *{border-right-color:var(--line)}

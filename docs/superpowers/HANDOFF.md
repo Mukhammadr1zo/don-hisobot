@@ -79,6 +79,23 @@ CA; production servers do not.
   `TZ=Asia/Tashkent` for log lines.
 - Phone nav wraps to a second row instead of scrolling sideways.
 
+## 2026-10-13/14: bento redesign, 4-digit PIN, UX pass
+
+- The customer chose bento direction C («Rangli»); every page was ported (plan: `docs/superpowers/plans/2026-10-13-bento-dizayn.md`).
+  Design system in `app.css` (МТУ tints `.mtu-1…6` keyed by `Mtu.sort`, Onest font self-hosted, light only); page CSS in
+  `static/hisobot/pages/*.css` via `{% block head %}`; `/_uslub/` shows every component.
+- PIN is 4 digits (customer decision). Lock: 5 wrong → 15 min, 10 → 1 h, 15 → closed until the МТУ unlocks
+  (`settings.PIN_HARD_LOCK_AFTER`, `access.hard_locked`, `Login.BLOCKED`); unlock also resets the count.
+- UX pass after a hands-on walk-through: phone start page shows the МТУ tiles first; the station picker sorts in Uzbek
+  alphabetical order (`views_public._alphabetical`); PIN page explains where the PIN comes from; the entry form's gap
+  warning links to the previous period while it is open; switched-off stations without data are hidden from the daily
+  table, the export and the report (`reports.shown`, with a muted «Ўчирилган N та станция кўрсатилмади»); the daily
+  table is a card list on phones; report override counts are amber text, not outlined cells; «Ҳисобот» leaves a day
+  that is still filling out of the chart, as «Ҳозир» does.
+- Real station list: 276 stations from `Desktop/texnologik-okno/data/topology/stations.json` → `stansiyalar.xlsx`
+  (local, git-ignored) in the import format; the 125 halts were switched off in the demo database.
+- `.superpowers/shot.py` photographs any page as any principal at any width (dev helper, git-ignored).
+
 ## Open minor items (none blocking)
 
 - Station edit page's links back to Станциялар do not carry the boshqarma's `?mtu=`.

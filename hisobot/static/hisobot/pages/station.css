@@ -58,6 +58,10 @@
 .hist .legend .swatch{width:14px;height:14px;border-radius:4px}
 
 /* ---- The entry form ---- */
+/* «Олдинги давр киритилмаган» while that period is still open: the whole notice is the way there. */
+.gap-link{display:flex;align-items:center;gap:12px;text-decoration:none;transition:box-shadow .15s}
+.gap-link .ico{margin-left:auto}
+.gap-link:hover{box-shadow:inset 0 0 0 2.5px var(--warn)}
 .result .t-sub:empty{display:none}
 /* Nothing to add up yet: a light dash, not a 60px black bar. */
 .result.is-blank .big{color:var(--ink-3);font-weight:400}

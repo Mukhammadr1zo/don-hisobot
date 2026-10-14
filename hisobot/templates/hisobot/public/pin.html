@@ -21,7 +21,8 @@ The PIN is never echoed back. The head tile is the picker's, in the station's М
     {% if error %}<div class="notice-error" role="alert">{{ error }}</div>{% endif %}
     <div>
       <label class="field-label" for="pin">ПИН</label>
-      <input class="num-input pin-input" type="text" id="pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="0000" autofocus>
+      <input class="num-input pin-input" type="text" id="pin" name="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="0000" autofocus aria-describedby="pin-help">
+      <p class="help" id="pin-help">ПИН — МТУ берган варақдаги 4 та рақам. Унутган бўлсангиз, МТУга мурожаат қилинг.</p>
     </div>
     <button class="btn btn-ink btn-lg btn-block">Кириш<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </form>

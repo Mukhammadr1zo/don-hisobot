@@ -236,9 +236,10 @@ def daily(request):
     # A period that has ended links its cells to the form; a running one stays blank.
     slugs = [periods.to_slug(pe) if periods.staff_can_write(pe, moment) else None for pe in (night_end, day_end)]
     rows = reports.daily_rows(stations, day, now=moment)
+    shown = reports.shown(rows)
     groups = [
         (group_mtu, [(row, [(row.night, slugs[0]), (row.day, slugs[1])]) for row in group], total)
-        for group_mtu, group, total in reports.by_mtu(rows)
+        for group_mtu, group, total in reports.by_mtu(shown)
     ]
     context = {
         "day": day,
@@ -248,7 +249,10 @@ def daily(request):
         "mtu": mtu,
         "mtus": access.mtus_for(request.user) if request.user.is_boshqarma else None,
         "groups": groups,
-        "grand": reports.totals(rows) if len(groups) > 1 else None,
+        "grand": reports.totals(shown) if len(groups) > 1 else None,
+        "hidden": len(rows) - len(shown),
+        # The legend's «Ўчирилган станция» only beside such a cell: an ended period not expected and not entered.
+        "off": any(slug and not c.entry and not c.expected for r in shown for c, slug in zip((r.night, r.day), slugs)),
         "night_ended": slugs[0] is not None,
         "day_ended": slugs[1] is not None,
         "prev_url": _query(request, mtu, d=(day - timedelta(days=1)).isoformat()),
