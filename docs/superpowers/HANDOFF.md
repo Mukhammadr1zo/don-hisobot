@@ -108,11 +108,15 @@ CA; production servers do not.
 - Data: 276 stations imported from the okno list, 125 halts switched off (history rows by boshqarma); 7 accounts,
   their first passwords in `/root/don-hisobot-parollar.txt` (root-only; delete once handed out).
 - Backups: root crontab `0 5,17 * * *` (UTC) runs `backup.sh` into `/opt/don-hisobot/backups`; first dump verified.
-- Pending: DNS A record `hisobot.d-railway.uz → 89.39.94.99`, then `certbot --nginx -d hisobot.d-railway.uz --redirect`.
-  Until then the site is HTTP-only by IP + Host header, and staff login cannot work (cookies are HTTPS-only).
+- Live since 2026-10-15 at https://hisobot.d-railway.uz (Let's Encrypt via certbot, HTTP→HTTPS redirect). Checked:
+  healthz, HSTS/nosniff/DENY, Secure+HttpOnly CSRF cookie, the real client IP reaches LoginFailure (a test failure
+  row with username `tekshiruv-ip` is in the table), neighbouring sites unaffected.
+- First passwords also handed over as the local, git-ignored `parollar.xlsx` in the project folder.
 - Update: `cd /opt/don-hisobot && ./backup.sh && git pull && docker compose up -d --build --wait`.
-- Seen on the server, not ours: `uty-redis` publishes 0.0.0.0:6379 and is reachable from the internet (Docker bypasses
-  UFW). Reported to the customer; fix in that project: publish `127.0.0.1:6379:6379`.
+- Seen on the server, not ours: `uty-redis` published 0.0.0.0:6379 without a password, reachable from the internet
+  (Docker bypasses UFW). Customer asked to fix it: `/root/uty-analytics-platform/.env` now has
+  `REDIS_PORT=127.0.0.1:6379` (backup `.env.bak-2026-10-15`; no tracked file changed). Recreating the container
+  (`docker compose up -d --no-deps redis` there) was refused by the auto-mode permission check and left to the customer.
 
 ## Open minor items (none blocking)
 
