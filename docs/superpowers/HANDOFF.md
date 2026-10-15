@@ -96,6 +96,24 @@ CA; production servers do not.
   (local, git-ignored) in the import format; the 125 halts were switched off in the demo database.
 - `.superpowers/shot.py` photographs any page as any principal at any width (dev helper, git-ignored).
 
+## Production (2026-10-15)
+
+- Server 89.39.94.99 (vm57227, Ubuntu 22.04, 3 vCPU, 3.8 GB RAM, shared with okno, taminot, smm, railmap, yuksaroy,
+  uty). Reached as root with `~/.ssh/yuksaroy_deploy` (customer's choice). Host nginx + certbot own 80/443; the server
+  clock stays UTC (other projects' cron jobs depend on it).
+- App in `/opt/don-hisobot`, branch `feat/tizim`, cloned through the read-only GitHub deploy key
+  `/root/.ssh/don_hisobot_github` (ssh host alias `github-don-hisobot`). `.env` (root-only) sets
+  `COMPOSE_FILE=compose.yaml:deploy/compose.vps.yml`, so plain `docker compose ...` runs web on 127.0.0.1:8610 with
+  memory caps and no Caddy. nginx site: `/etc/nginx/sites-available/hisobot.d-railway.uz.conf` (symlinked).
+- Data: 276 stations imported from the okno list, 125 halts switched off (history rows by boshqarma); 7 accounts,
+  their first passwords in `/root/don-hisobot-parollar.txt` (root-only; delete once handed out).
+- Backups: root crontab `0 5,17 * * *` (UTC) runs `backup.sh` into `/opt/don-hisobot/backups`; first dump verified.
+- Pending: DNS A record `hisobot.d-railway.uz → 89.39.94.99`, then `certbot --nginx -d hisobot.d-railway.uz --redirect`.
+  Until then the site is HTTP-only by IP + Host header, and staff login cannot work (cookies are HTTPS-only).
+- Update: `cd /opt/don-hisobot && ./backup.sh && git pull && docker compose up -d --build --wait`.
+- Seen on the server, not ours: `uty-redis` publishes 0.0.0.0:6379 and is reachable from the internet (Docker bypasses
+  UFW). Reported to the customer; fix in that project: publish `127.0.0.1:6379:6379`.
+
 ## Open minor items (none blocking)
 
 - Station edit page's links back to Станциялар do not carry the boshqarma's `?mtu=`.
