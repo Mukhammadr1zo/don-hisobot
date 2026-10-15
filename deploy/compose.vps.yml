@@ -1,0 +1,20 @@
+# Shared server that already runs nginx on 80/443 (89.39.94.99 with okno, taminot, yuksaroy, ...).
+# Caddy stays off (nginx terminates TLS, deploy/nginx/), web listens on localhost only, and memory is capped
+# so this stack cannot starve the other projects. In .env next to compose.yaml:
+#   COMPOSE_FILE=compose.yaml:deploy/compose.vps.yml
+# then every plain `docker compose ...` (and backup.sh) uses both files.
+
+services:
+  caddy:
+    profiles: ["caddy"]  # never started here
+
+  web:
+    ports: ["127.0.0.1:${WEB_PORT:-8610}:8000"]
+    mem_limit: 320m
+    # Two workers are plenty for ~150 stations reporting twice a day; each holds ~80 MB.
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 -k gthread --workers 2 --threads 4 --timeout 30 --access-logfile - --no-control-socket"]
+
+  db:
+    mem_limit: 256m
+    shm_size: 128m
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]

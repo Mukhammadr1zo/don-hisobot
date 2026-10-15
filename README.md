@@ -96,6 +96,26 @@ Ishga tushgandan keyin tekshiring:
   kelyapti va hamma bitta IP bo'lib ko'rinadi (bitta odamning xatolari hammani cheklaydi): serverda IPv6 ni
   Docker uchun yoqing yoki domenga faqat A (IPv4) yozuvini qoldiring.
 
+### Umumiy serverda (80/443 ni nginx egallagan bo'lsa)
+
+89.39.94.99 kabi boshqa loyihalar ham turgan serverda Caddy ishlatilmaydi: TLS ni mavjud nginx va certbot beradi,
+ilova faqat `127.0.0.1:8610` da turadi va xotirasi cheklanadi (`deploy/compose.vps.yml`).
+
+```sh
+git clone <repo> /opt/don-hisobot && cd /opt/don-hisobot
+cp .env.example .env && chmod 600 .env     # DOMAIN, SECRET_KEY, DB_PASSWORD; va quyidagi qator:
+echo 'COMPOSE_FILE=compose.yaml:deploy/compose.vps.yml' >> .env
+docker compose up -d --build --wait
+docker compose exec web python manage.py seed
+cp deploy/nginx/hisobot.d-railway.uz.conf /etc/nginx/sites-available/
+ln -s /etc/nginx/sites-available/hisobot.d-railway.uz.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d hisobot.d-railway.uz --redirect     # domen A yozuvi server IP siga qaragandan keyin
+```
+
+Server soat mintaqasini o'zgartirmang (boshqa loyihalarning cron'i unga bog'liq). Zaxira cron'ini UTC da yozing:
+`0 5,17 * * *` Toshkent vaqti bilan 10:00 va 22:00 ga teng.
+
 ## Zaxira
 
 `backup.sh` bazani `backups/hisobot-YYYY-MM-DD_HHMM.dump` ga yozadi, `pg_restore --list` bilan tekshiradi,
