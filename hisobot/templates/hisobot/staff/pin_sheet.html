@@ -3,7 +3,8 @@
 {% comment %}
 The only place a plaintext PIN is ever shown. The view sends Cache-Control: no-store; the PINs are in no message,
 log or later page, so a lost sheet is replaced by issuing new PINs.
-Each PIN appears once on the page (tests count it), and only as <small>ПИН</small>NNNN.
+Each PIN appears once in the page text (tests count it), only as <small>ПИН</small>NNNN; the «Excel юклаб олиш»
+link carries the same strips as a base64 data: URI built in this response (views_stations._pin_workbook).
 On screen the strips are tickets with a tear-off stub; on paper (pages/admin.css, @media print) plain strips between
 dashed cut lines, never split across pages, under a one-line print header.
 {% endcomment %}
@@ -18,11 +19,12 @@ dashed cut lines, never split across pages, under a one-line print header.
   </div>
   <div class="actions">
     <a class="btn btn-quiet" href="{% url 'stations' %}">Станциялар</a>
+    <a class="btn" href="{{ xlsx_href }}" download="{{ xlsx_name }}"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Excel юклаб олиш</a>
     <button class="btn btn-primary" type="button" onclick="window.print()"><svg class="ico" aria-hidden="true"><use href="#i-print"/></svg>Чоп этиш</button>
   </div>
 </section>
 <div class="notice-warn no-print" role="status">
-  ПИН фақат бир марта кўрсатилади. Варақни чоп этиб, станцияга топширинг.
+  ПИН фақат бир марта кўрсатилади. Варақни чоп этинг ёки Excel қилиб юклаб олинг ва станцияга топширинг.
   {% if renewed %}Эски ПИН энди ишламайди, станциянинг очиқ сессиялари тугади.{% else %}Варақ йўқолса, «ПИН яратиш» ни қайта босинг: ҳали ишлатилмаган ПИНлар янгисига алмашади.{% endif %}
 </div>
 <p class="print-only pin-print-head">Дон ҳисоботи · ПИН варақ · {{ now|dt }}</p>

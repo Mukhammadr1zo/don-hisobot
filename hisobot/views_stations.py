@@ -1,6 +1,8 @@
 """Станциялар: the roster, PIN sheets, station settings, and staff passwords (plan Task 8)."""
 
+import base64
 import secrets
+from io import BytesIO
 
 from django import forms
 from django.contrib import messages
@@ -13,8 +15,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
-from . import access, balance, roster
+from . import access, balance, periods, roster
 from .forms import REQUIRED
 from .models import Change, Mtu, Station, User, validate_station_name
 from .views_public import TOO_MANY
@@ -309,6 +313,35 @@ def toggle(request, station_id):
     return redirect("station_edit", station_id=station.pk)
 
 
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _pin_workbook(strips, now):
+    """The sheet's strips as an .xlsx, base64 for a data: link. Built inside this response, so the plaintext PINs
+    still exist nowhere else: no file on the server, no second request that would need them again."""
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "ПИН варақ"
+    sheet.append(["МТУ", "Станция", "ПИН", "Кириш манзили"])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="E8EEF8")
+    for strip in strips:
+        sheet.append([f"{strip['station'].mtu.name} МТУ", strip["station"].name, strip["pin"], strip["url"]])
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            # Text, always: «0042» must keep its zeros, and no name may ever be read as a formula.
+            cell.data_type = "s"
+            cell.number_format = "@"
+    sheet.append([])
+    sheet.append([f"Яратилган: {periods.local(now):%d.%m.%Y %H:%M}. ПИН фақат шу файлда ва чоп этилган варақда бор."])
+    for column, width in zip("ABCD", (18, 26, 10, 48)):
+        sheet.column_dimensions[column].width = width
+    buffer = BytesIO()
+    book.save(buffer)
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def _sheet(request, issued, *, renewed=False):
     """The printable PIN sheet. The plaintext PINs exist only in this response: never in a message or the log."""
     strips = [
@@ -319,7 +352,14 @@ def _sheet(request, issued, *, renewed=False):
         }
         for station, pin in issued
     ]
-    context = {"strips": strips, "renewed": renewed, "now": timezone.now()}
+    now = timezone.now()
+    context = {
+        "strips": strips,
+        "renewed": renewed,
+        "now": now,
+        "xlsx_href": f"data:{XLSX_TYPE};base64,{_pin_workbook(strips, now)}",
+        "xlsx_name": f"pin-varaq-{periods.local(now):%Y-%m-%d_%H%M}.xlsx",
+    }
     return render(request, "hisobot/staff/pin_sheet.html", context)
 
 

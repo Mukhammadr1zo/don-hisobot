@@ -1,3 +1,4 @@
+import base64
 import re
 import struct
 import tracemalloc
@@ -13,13 +14,20 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from hisobot import access, balance, periods, roster
 from hisobot.models import Change, LoginFailure, Mtu, Station, User
 
 HEADER = ("МТУ", "Станция номи")
 PIN_ON_SHEET = re.compile(r"<small>ПИН</small>\s*(\d{4})")
+# The «Excel юклаб олиш» link: the same strips as an .xlsx in a base64 data: URI.
+DATA_URI = re.compile(r'href="data:[^;"]+;base64,([A-Za-z0-9+/=]+)"')
+
+
+def sheet_workbook(response):
+    (data,) = DATA_URI.findall(response.content.decode())
+    return load_workbook(BytesIO(base64.b64decode(data))).active
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
@@ -330,7 +338,7 @@ class PinSheetTests(StationsTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])
-        content = response.content.decode()
+        content = DATA_URI.sub('href=""', response.content.decode())  # the page text, without the Excel copy
         pins = PIN_ON_SHEET.findall(content)
         self.assertEqual(len(pins), 2)
         for station in (self.station, self.given):
@@ -352,12 +360,27 @@ class PinSheetTests(StationsTestCase):
         for pin in pins + [self.old_pin]:
             self.assertNotIn(pin, later)
 
+    def test_sheet_downloads_as_excel_with_the_same_pins(self):
+        response = self.sheet()
+
+        pins = PIN_ON_SHEET.findall(DATA_URI.sub('href=""', response.content.decode()))
+        self.assertContains(response, 'download="pin-varaq-')
+        self.assertContains(response, "Excel юклаб олиш")
+        sheet = sheet_workbook(response)
+        self.assertEqual([cell.value for cell in sheet[1]], ["МТУ", "Станция", "ПИН", "Кириш манзили"])
+        listed = [row for row in sheet.iter_rows(min_row=2, max_col=4) if row[2].value]
+        self.assertEqual(sorted(row[2].value for row in listed), sorted(pins))
+        self.assertEqual({row[1].value for row in listed}, {self.station.name, self.given.name})
+        self.assertTrue(all(cell.data_type == "s" for row in listed for cell in row))  # «0042» keeps its zeros
+        self.assertIn(f"http://testserver/s/{self.given.pk}/", {row[3].value for row in listed})
+
     def test_checked_stations_only(self):
         response = self.sheet(station=[str(self.given.pk), str(self.used.pk)])
 
-        pins = PIN_ON_SHEET.findall(response.content.decode())
+        pins = PIN_ON_SHEET.findall(DATA_URI.sub('href=""', response.content.decode()))
         self.assertEqual(len(pins), 1)
         self.assertTrue(check_password(pins[0].replace(" ", ""), self.stored(self.given).pin_hash))
+        self.assertEqual(sheet_workbook(response)["C2"].value, pins[0])
         self.assertEqual(self.stored(self.station).pin_hash, "")
 
     def test_the_button_counts_what_a_press_with_nothing_ticked_renews(self):
@@ -397,9 +420,10 @@ class PinSheetTests(StationsTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])
-        pins = PIN_ON_SHEET.findall(response.content.decode())
+        pins = PIN_ON_SHEET.findall(DATA_URI.sub('href=""', response.content.decode()))
         self.assertEqual(len(pins), 1)
         self.assertTrue(check_password(pins[0].replace(" ", ""), self.stored(self.given).pin_hash))
+        self.assertEqual(sheet_workbook(response)["C2"].value, pins[0])
         self.assertIsNone(access.current_station(request))
 
     def test_regenerate_pin_works_for_a_used_pin_but_not_for_an_inactive_station(self):
